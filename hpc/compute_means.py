@@ -11,9 +11,9 @@ import pandas as pd
 from pathlib import Path
 
 sys.path.append(os.path.expanduser('~/Documents/Medley'))
-from scripts.prepare_monthly_ts_data import datapath
+from scripts.prepare_monthly_ts_data import datapath, udomains
 
-def zonal_u250_era5(lonmin: float = None, lonmax: float = None, latmin: float = None, latmax: float = None) -> xr.DataArray:
+def zonal_u_era5(level = 250, lonmin: float = None, lonmax: float = None, latmin: float = None, latmax: float = None) -> xr.DataArray:
     """
     Extracting monthly average zonal mean u zonal wind 
     defaulting to entire domain, but possible within limited domain
@@ -22,7 +22,13 @@ def zonal_u250_era5(lonmin: float = None, lonmax: float = None, latmin: float = 
     Using daily u250 data from Tamara  (latitude = decreasing, longitude = increasing, positive only)
     Outputting 2D array (time [months], latitude [degrees north])
     """
-    da = xr.open_dataset('/scistor/ivm/data_catalogue/reanalysis/ERA5_0.25/u_winds_250/1959-2021_u_winds_250hPa.nc', chunks = {'latitude':4})['u']
+    assert (level in [250,500]), "Only 500hpa and 250 hpa are included"
+    basepath = Path('/scistor/ivm/data_catalogue/reanalysis/ERA5_0.25')
+    if level == 250: # Different directory structure
+        subpath = basepath / 'u_winds_250' 
+    else:
+        subpath = basepath / 'u_winds'
+    da = xr.open_dataset(subpath / f'1959-2021_u_winds_{level}hPa.nc', chunks = {'latitude':4})['u']
     # longitudinal limitation
     if lonmin is None:
         lonslice = slice(lonmin,lonmax,None)
@@ -40,7 +46,10 @@ def zonal_u250_era5(lonmin: float = None, lonmax: float = None, latmin: float = 
     monthly.attrs.update({'resample':'monthly_mean'})
     return monthly
 
-lonmin = -25
-lonmax = 50
-da = zonal_u250_era5(lonmin = lonmin, lonmax = lonmax, latmin = 0, latmax = None)
-da.to_netcdf( datapath / f'monthly_zonalmean_u250_NH_{lonmin}E_{lonmax}E.nc')
+
+if __name__ == '__main__':
+    level = 500
+    for lonmin, lonmax in udomains.values():
+        da = zonal_u_era5(level = level, lonmin = lonmin, lonmax = lonmax, latmin = 0, latmax = None)
+        da.to_netcdf( datapath / f'monthly_zonalmean_u{level}_NH_{lonmin}E_{lonmax}E.nc')
+    

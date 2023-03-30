@@ -37,6 +37,10 @@ climexp_properties = pd.DataFrame({
 
 datapath = Path('/scistor/ivm/jsn295/Medi/monthly')
 
+# Domain splitting for u to capture subtropical jet and eddy-driven jet separately.
+udomains = {'med':(-8.5,42), # Portugal to eastern turkey
+        'atl':(-50,-10)} # from Newfoundland coast to Ireland coast
+
 def download_raw_data(name:str) -> tuple[array.array,array.array]:
     """
     Only timeseries
@@ -99,20 +103,30 @@ def download_climexp() -> pd.DataFrame:
         collection.append(ts)
     return pd.concat(collection, axis = 1, join = 'outer') 
 
-def u250_series() -> pd.DataFrame:
+def u_series(name, lonmin, lonmax, level = 250) -> pd.DataFrame:
     """
     Monthly mean zonal mean u250
+    Separate for subtropical jet and north atlantic. 
     Extracting latitude of maximum, and strengths at
     40N and 55N
     """
-    da = xr.open_dataarray(datapath / f'monthly_zonalmean_u250_NH_-25E_50E.nc')
+    path = datapath / f'monthly_zonalmean_u{level}_NH_{lonmin}E_{lonmax}E.nc'
+    da = xr.open_dataarray(path)
     collection = da.idxmax('latitude').to_dataframe()
-    collection.columns = pd.MultiIndex.from_tuples([('lat_u250max',0,'era5')], names = climexp_properties.index[:-1])
-    for lat in [30,40,55]:
+    collection.columns = pd.MultiIndex.from_tuples([(f'{name}_u{level}_latmax',0,'era5')], names = climexp_properties.index[:-1])
+    for lat in range(20,70,10):
         ts = da.sel(latitude = lat, drop = True).to_dataframe().astype(np.float32)
-        ts.columns = pd.MultiIndex.from_tuples([('u250',lat,'era5')], names = climexp_properties.index[:-1])
+        ts.columns = pd.MultiIndex.from_tuples([(f'{name}_u{level}',lat,'era5')], names = climexp_properties.index[:-1])
         collection = collection.join(ts, how = 'left') # Indices should match so how is irrelevant.
     return collection
+
+def all_u_series():
+    collection = []
+    for level in [250,500]:
+        for name, (lonmin, lonmax) in udomains.items():
+            u = u_series(name = name, lonmin = lonmin, lonmax = lonmax, level = level)
+            collection.append(u) 
+    return pd.concat(collection, axis = 1)
 
 def get_monthly_data(force_update: bool = False):
     """
@@ -120,9 +134,9 @@ def get_monthly_data(force_update: bool = False):
     else will run the downloading and processing (or when update is forced).
     """
     finalpath = datapath / 'complete.parquet'
-    if (not finalpath.exists()) or force_update:
+    if (not finalpath.exists()) or force_update: # Possibly need to unlink for updating
         climexp_df = download_climexp()
-        era_df = u250_series()
+        era_df = all_u_series()
         complete = climexp_df.join(era_df, how = 'outer') # Should not add rows to climexp_df as that is much larger.
         table = pa.Table.from_pandas(complete) # integer multiindex level becomes text
         pq.write_table(table, finalpath)
@@ -130,3 +144,7 @@ def get_monthly_data(force_update: bool = False):
         table = pq.read_table(finalpath)
     return table
 
+if __name__ == '__main__':
+    pass
+    #df = get_monthly_data()#.to_pandas()
+    #a = all_u_series()
