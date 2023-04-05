@@ -33,6 +33,7 @@ climexp_properties = pd.DataFrame({
     'hadcrut_gmst':['gmst',0,'hadcrut5','ihadcrut5_global.dat'],
     'cpc_mjo3':['mjo',3,'ncep','icpc_mjo03_mean12.dat'],
     'cpc_mjo6':['mjo',6,'ncep','icpc_mjo06_mean12.dat'],
+    'ncar_qbo':['qbo',0,'ncep','inqbo.dat'],
     }, index = ['name','subindex','product','climexpfile']) 
 
 datapath = Path('/scistor/ivm/jsn295/Medi/monthly')
@@ -128,6 +129,17 @@ def all_u_series():
             collection.append(u) 
     return pd.concat(collection, axis = 1)
 
+def vortex():
+    """
+    Definition of Zappa and Shepherd 2017
+    """
+    vortexpath = datapath / 'monthly_u20_era5.zarr'
+    uwinds = xr.open_zarr(vortexpath)
+    uwinds = uwinds.sel(latitude = slice(80,70)).mean(['longitude','latitude'])
+    ts = uwinds.to_dataframe() # invokes the compute
+    ts.columns = pd.MultiIndex.from_tuples([('vortex_u20',7080,'era5')], names = climexp_properties.index[:-1])
+    return ts
+
 def get_monthly_data(force_update: bool = False):
     """
     Main function, reads data if stored
@@ -136,8 +148,10 @@ def get_monthly_data(force_update: bool = False):
     finalpath = datapath / 'complete.parquet'
     if (not finalpath.exists()) or force_update: # Possibly need to unlink for updating
         climexp_df = download_climexp()
-        era_df = all_u_series()
+        era_df = all_u_series() # jet stream u's
+        vortex_df = vortex() # stratospheric vortex u's
         complete = climexp_df.join(era_df, how = 'outer') # Should not add rows to climexp_df as that is much larger.
+        complete = complete.join(vortex_df, how = 'outer')
         table = pa.Table.from_pandas(complete) # integer multiindex level becomes text
         pq.write_table(table, finalpath)
     else:
@@ -145,6 +159,5 @@ def get_monthly_data(force_update: bool = False):
     return table
 
 if __name__ == '__main__':
-    pass
-    #df = get_monthly_data()#.to_pandas()
+    df = get_monthly_data().to_pandas()
     #a = all_u_series()
