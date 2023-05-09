@@ -14,8 +14,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 climexp_properties = pd.DataFrame({
-    'ersst_nino_1':['enso',1,'ersstv5','iersst_nino3a_rel.dat'],
-    'ersst_nino_2':['enso',2,'ersstv5','iersst_nino3a_rel.dat'],
+    'ersst_nino_12':['enso',12,'ersstv5','iersst_nino12a_rel.dat'],
     'ersst_nino_3':['enso',3,'ersstv5','iersst_nino3a_rel.dat'],
     'ersst_nino_34':['enso',34,'ersstv5','iersst_nino3.4a_rel.dat'], # Relative nino's
     'ersst_nino_4':['enso',4,'ersstv5','iersst_nino4a_rel.dat'],
@@ -27,7 +26,7 @@ climexp_properties = pd.DataFrame({
     'ncar_snao':['snao',0,'ncep','isnao_ucar.dat'],
     'cpc_ao':['ao',0,'ncep','icpc_ao.dat'], # HAs a two-part time index
     'slp_ao':['ao',0,'trenb','iao_slp_ext.dat'],
-    'cpc_ea':['ea',0,'ncep','icpc_ea.dat'],
+    'cpc_ea':['ea',0,'ncep','icpc_ea.dat'], # Broken link in climexp to metadata. Look here: https://www.cpc.ncep.noaa.gov/data/teledoc/ea.shtml
     #'hadsst_pdo':['pdo',0,'hadsst3','ipdo_hadsst3.dat'], # Has missing years
     'ersst_pdo':['pdo',0,'ersstv5','ipdo_ersst.dat'],
     'hadcrut_gmst':['gmst',0,'hadcrut5','ihadcrut5_global.dat'],
