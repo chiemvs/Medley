@@ -139,6 +139,23 @@ def vortex():
     ts.columns = pd.MultiIndex.from_tuples([('vortex_u20',7080,'era5')], names = climexp_properties.index[:-1])
     return ts
 
+def eke_series():
+    """
+    Only the atlantic domain
+    """
+    lonmin, lonmax = udomains['atl']
+    path = datapath / f'monthly_zonalmean_EKE_NH_{lonmin}E_{lonmax}E.nc'
+    da = xr.open_dataarray(path)
+    collection = da.idxmax('latitude').to_dataframe().unstack('Reanalysis').astype(np.float32)
+    collection.columns = pd.MultiIndex.from_product([('atl_eke_latmax',),(0,),collection.columns.get_level_values('Reanalysis')], names = climexp_properties.index[:-1])
+    for lat in range(20,70,10):
+        ts = da.sel(latitude = lat, drop = True, method = 'nearest').to_dataframe().unstack('Reanalysis').astype(np.float32)
+        ts.columns = pd.MultiIndex.from_product([('atl_eke',),(lat,),ts.columns.get_level_values('Reanalysis')], names = climexp_properties.index[:-1])
+        collection = collection.join(ts, how = 'left') # Indices should match so how is irrelevant.
+    # For now only ERA5
+    return collection.loc[:,(slice(None),slice(None),['ERA5'])]
+
+
 def get_monthly_data(force_update: bool = False):
     """
     Main function, reads data if stored
@@ -149,8 +166,10 @@ def get_monthly_data(force_update: bool = False):
         climexp_df = download_climexp()
         era_df = all_u_series() # jet stream u's
         vortex_df = vortex() # stratospheric vortex u's
+        eke_df = eke_series() 
         complete = climexp_df.join(era_df, how = 'outer') # Should not add rows to climexp_df as that is much larger.
         complete = complete.join(vortex_df, how = 'outer')
+        complete = complete.join(eke_df, how = 'outer')
         table = pa.Table.from_pandas(complete) # integer multiindex level becomes text
         pq.write_table(table, finalpath)
     else:
@@ -159,4 +178,4 @@ def get_monthly_data(force_update: bool = False):
 
 if __name__ == '__main__':
     df = get_monthly_data().to_pandas()
-    #a = all_u_series()
+    #collection = eke_series()
