@@ -11,7 +11,9 @@ import xarray as xr
 import pandas as pd
 
 from pathlib import Path
-from datetime import datetime, timedelta
+
+sys.path.append(os.path.expanduser('~/Documents/Medley/'))
+from Medley.utils import process_ascii
 
 climexp_properties = pd.DataFrame({
     'ersst_nino_12':['enso',12,'ersstv5','iersst_nino12a_rel.dat'],
@@ -68,30 +70,6 @@ def download_raw_data(name:str) -> tuple[array.array,array.array]:
                         values.extend(content)
     return timestamps, values
 
-def decimal_year_to_datetime(decyear: float) -> datetime:
-    """Decimal year to datetime, not accounting for leap years"""
-    baseyear = int(decyear)
-    ndays = 365 * (decyear - baseyear)
-    return datetime(baseyear,1,1) + timedelta(days = ndays)
-
-def process(name: str, timestamps: array.array, values: array.array) -> pd.DataFrame:
-    """
-    Missing value handling, and handling the case with multiple monthly values for one yearly timestamp
-    """
-    # Missing values
-    values = np.array(values)
-    values[np.isclose(values, np.full_like(values, -999.9))] = np.nan
-    # Temporal index
-    assert (np.allclose(np.diff(timestamps),1.0) or np.allclose(np.diff(timestamps), 1/12, atol = 0.001)), 'timestamps do not seem to be decimal years, with a yearly or monthly interval, check continuity'
-    if len(timestamps) != len(values):
-        assert (len(values) % len(timestamps)) == 0, 'values are not devisible by timestamps, check shapes and lengths'
-        warnings.warn(f'Spotted one timestamp per {len(values)/len(timestamps)} values data')
-    timestamps = pd.date_range(start = decimal_year_to_datetime(timestamps[0]), periods = len(values),freq = 'MS') # Left stamped
-    series = pd.DataFrame(values[:,np.newaxis], index = timestamps)
-    # Adding extra information, except for climexp file
-    series.columns = pd.MultiIndex.from_tuples([tuple(climexp_properties[name].values)],names = climexp_properties.index)
-    series.columns = series.columns.droplevel(-1)
-    return series 
 
 def download_climexp() -> pd.DataFrame:
     """Collecting all the ready timeseries data from climexp"""
@@ -99,7 +77,9 @@ def download_climexp() -> pd.DataFrame:
     for name in climexp_properties.keys():
         print(f'starting with: {name}')
         t1, v1 = download_raw_data(name)
-        ts = process(name, t1, v1)
+        ts = process_ascii(t1, v1)
+        ts.columns = pd.MultiIndex.from_tuples([tuple(climexp_properties[name].values)],names = climexp_properties.index)
+        ts.columns = ts.columns.droplevel(-1)
         collection.append(ts)
     return pd.concat(collection, axis = 1, join = 'outer') 
 
@@ -163,6 +143,8 @@ def get_monthly_data(force_update: bool = False):
     """
     finalpath = datapath / 'complete.parquet'
     if (not finalpath.exists()) or force_update: # Possibly need to unlink for updating
+        if finalpath.exists():
+            os.system(f'cp {finalpath} {finalpath}.backup')
         climexp_df = download_climexp()
         era_df = all_u_series() # jet stream u's
         vortex_df = vortex() # stratospheric vortex u's
@@ -171,11 +153,12 @@ def get_monthly_data(force_update: bool = False):
         complete = complete.join(vortex_df, how = 'outer')
         complete = complete.join(eke_df, how = 'outer')
         table = pa.Table.from_pandas(complete) # integer multiindex level becomes text
+
         pq.write_table(table, finalpath)
     else:
         table = pq.read_table(finalpath)
     return table
 
 if __name__ == '__main__':
-    df = get_monthly_data().to_pandas()
+    df = get_monthly_data(force_update = False).to_pandas()
     #collection = eke_series()

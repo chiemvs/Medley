@@ -54,14 +54,17 @@ def zonal_eke(lonmin: float = None, lonmax: float = None, latmin: float = None, 
     latslice = slice(latmin, latmax, None)  # stored with Decreasing latitude
 
     averages = []
-    for seas, startmonth in {'djf':'DEC','mam':'MAR','jja':'JUN','son':'SEP'}.items():
+    for seas, startmonth in {'djf':'JAN','mam':'MAR','jja':'JUN','son':'SEP'}.items():
         da = ds[f'eke_trans_vrt_{seas}_rean_buttercup_25_6']
         da = da.sel({'longitude':lonslice, 'latitude':latslice})
         zonmean = da.mean('longitude')
         for i in range(len(seas)):  
             temp = zonmean.copy()
             timestamps = pd.date_range('1979-01-01', periods = len(da.year), freq = f'AS-{startmonth}')
-            timestamps += pd.tseries.offsets.MonthBegin(i)
+            if seas == 'djf':
+                timestamps += pd.tseries.offsets.MonthBegin(i - 1) # DJF stamped with year of the JAN and FEB.
+            else:
+                timestamps += pd.tseries.offsets.MonthBegin(i)
             temp.coords.update({'year':timestamps})
             averages.append(temp)
     averages = xr.concat(averages, dim = 'year').rename({'year':'time'}).sortby('time')
