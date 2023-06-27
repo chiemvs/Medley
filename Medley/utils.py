@@ -35,7 +35,9 @@ def process_ascii(timestamps: array.array, values: array.array, miss_val = -999.
     """
     # Missing values
     values = np.array(values)
-    values[np.isclose(values, np.full_like(values, miss_val))] = np.nan
+    ismiss = np.isclose(values, np.full_like(values, miss_val))
+    values = values.astype(np.float32) # Conversion to float because of np.nan
+    values[ismiss] = np.nan
     # Temporal index
     assert (np.allclose(np.diff(timestamps),1.0) or np.allclose(np.diff(timestamps), 1/12, atol = 0.001)), 'timestamps do not seem to be decimal years, with a yearly or monthly interval, check continuity'
     if len(timestamps) != len(values):
@@ -45,3 +47,19 @@ def process_ascii(timestamps: array.array, values: array.array, miss_val = -999.
     series = pd.DataFrame(values[:,np.newaxis], index = timestamps)
     # Adding extra information, except for climexp file
     return series 
+
+def coord_to_decimal_coord(coord: str):
+    """
+    e.g. +015:58:41 to decimal coords
+    but also +45:49:00
+    and -000:41:29
+    """
+    assert coord[0] in ['+','-']
+    degree = int(coord[1:-6]) 
+    minutes = int(coord[-5:-3])
+    seconds = int(coord[-2:])
+    decimal = abs(degree) + minutes/60 + seconds/3600
+    if coord[0] == '+':
+        return decimal
+    else:
+        return -decimal

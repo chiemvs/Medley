@@ -10,7 +10,7 @@ import pyarrow as pa
 from pathlib import Path
 
 sys.path.append(os.path.expanduser('~/Documents/Medley/'))
-from Medley.utils import chunk_func, process_ascii
+from Medley.utils import chunk_func, process_ascii, coord_to_decimal_coord
 from Medley.preprocessing import monthly_resample_func
 
 overwrite = True
@@ -38,22 +38,34 @@ monthly values
 
 rawdir = Path(os.path.expanduser('~/Medi/monthly/eca_preaggregated_raw'))
 variables = {'CDD':'days','PET':'mm','SPI3':'','RR':'mm'}
-variables = {'RR':'mm'}
+#variables = {'RR':'mm'}
 
 countries = ['SPAIN', 'PORTUGAL','FRANCE','ITALY','GREECE','ISRAEL','SLOVENIA','CROATIA','CYPRUS','MONTENEGRO','ALBANIA']#,'TÃ\x9cRKIYE']
 # Turkey is weirdly encoded
 
-miss = -999999.0
+miss = -999999
 
 def read_one_file(path):
     """
     reading and numerical processing in read_ascii
     conversion from units 0.01 to units 1
+    01-06 SOUID: Source identifier
+    08-11 YEAR : YYYY
+    13-20 ANNUAL DATA VALUES
+    21-28 WINTER HALF YEAR DATA VALUES
+    29-36 SUMMER HALF YEAR DATA VALUES
+    37-44 WINTER (DJF) DATA VALUES
+    45-52 SPRING (MAM) DATA VALUES
+    53-60 SUMMER (JJA) DATA VALUES
+    61-68 AUTUMN (SON) DATA VALUES
+    69-76 JANUARY DATA VALUES
+    etc. 
+    157-164 DECEMBER DATA VALUES
     """
-    temp = pd.read_fwf(path, skiprows = 29, header = None) 
-    year = temp.iloc[:,1]
+    temp = pd.read_fwf(path, skiprows = 29, header = None, colspecs = [(7,11),(68,76),(76,84),(84,92),(92,100),(100,108),(108,116),(116,124),(124,132),(132,140),(140,148),(148,156),(156,164)])
+    year = temp.iloc[:,0]
     jan_to_dec = temp.iloc[:,-12:]
-    test = process_ascii(year.astype(np.float32), jan_to_dec.astype(np.float32).values.flatten(), miss_val = miss)
+    test = process_ascii(year.astype(np.float32), jan_to_dec.values.flatten(), miss_val = miss)
     return test / 100
 
 for var in variables.keys():
@@ -62,15 +74,27 @@ for var in variables.keys():
     tempvardir = rawdir / f'temp_{var}'
     if (not zippath.exists()) or overwrite:
         url = f'https://knmi-ecad-assets-prd.s3.amazonaws.com/download/millennium/data/{zipname}'
-        #os.system(f'curl {url} -o {zippath}')
-        #os.system(f'unzip {zippath} stations.txt -d {tempvardir}')
+        os.system(f'curl {url} -o {zippath}')
+        os.system(f'unzip {zippath} stations.txt -d {tempvardir}')
         stations = pd.read_fwf(f'{tempvardir}/stations.txt',
                 colspecs = [(0,5),(6,46),(47,87),(88,97),(98,108),(109,114)], skiprows = 1,header = 11,encoding = 'latin')
         subset = stations.loc[stations['COUNTRYNAME'].apply(lambda n: (n in countries) or n.endswith('KIYE')).values,:]
+        # Some reformatting
+        subset.loc[:,'LAT'] = subset.loc[:,'LAT'].apply(coord_to_decimal_coord)
+        subset.loc[:,'LON'] = subset.loc[:,'LON'].apply(coord_to_decimal_coord)
+        subset = subset.astype({'LAT':np.float64,'LON':np.float64})
+        subset.loc[subset['COUNTRYNAME'].apply(lambda n: n.endswith('KIYE')).values,'COUNTRYNAME'] = 'TURKEY'
+        subset = subset.set_index('STAID')
 
-        to_extract = {sid:f'index{var}' + f'000000{sid}'[-6:] + '.txt' for sid in subset['STAID']}
-        #paths = {sid:tempvardir / to_extract[sid] for sid in to_extract.keys()}
+        to_extract = {sid:f'index{var}' + f'000000{sid}'[-6:] + '.txt' for sid in subset.index}
 
-        #os.system(f'unzip {zippath} {" ".join(to_extract.values())} -d {tempvardir}')
+        os.system(f'unzip {zippath} {" ".join(to_extract.values())} -d {tempvardir}')
         data = {sid: read_one_file(tempvardir / filename) for sid, filename in to_extract.items()}
-        temp = pd.concat(data, axis = 1, join = 'outer')
+        dataframe = pd.concat(data, axis = 1, join = 'outer')
+        dataframe.columns = dataframe.columns.droplevel(-1).set_names('STAID')
+
+        newdatapath = rawdir.parent / f'eca_preaggregated_{var}.h5'
+        stationpath = rawdir.parent / f'eca_preaggregated_{var}_stations.h5'
+
+        dataframe.to_hdf(newdatapath, key = var, mode = 'w')
+        subset.to_hdf(stationpath, key = var, mode = 'w')
