@@ -14,7 +14,6 @@ from Medley.utils import chunk_func, process_ascii, coord_to_decimal_coord
 from Medley.preprocessing import monthly_resample_func
 
 overwrite = True
-blend = True
 
 """
 Daily data
@@ -40,7 +39,7 @@ rawdir = Path(os.path.expanduser('~/Medi/monthly/eca_preaggregated_raw'))
 variables = {'CDD':'days','PET':'mm','SPI3':'','RR':'mm'}
 #variables = {'RR':'mm'}
 
-countries = ['SPAIN', 'PORTUGAL','FRANCE','ITALY','GREECE','ISRAEL','SLOVENIA','CROATIA','CYPRUS','MONTENEGRO','ALBANIA']#,'TÃ\x9cRKIYE']
+countries = ['SPAIN', 'PORTUGAL','FRANCE','ITALY','GREECE','ISRAEL','SLOVENIA','CROATIA','CYPRUS','MONTENEGRO','ALBANIA','NORTH MACEDONIA','BOSNIA AND HERZEGOVINA','TUNISIA']#,'TÃ\x9cRKIYE']
 # Turkey is weirdly encoded
 
 miss = -999999
