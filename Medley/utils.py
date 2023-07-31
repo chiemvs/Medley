@@ -6,6 +6,12 @@ import pandas as pd
 
 from datetime import datetime, timedelta
 
+# Domain splitting for u to capture subtropical jet and eddy-driven jet separately.
+udomains = {'med':(-8.5,42), # Portugal to eastern turkey
+        'atl':(-50,-10)} # from Newfoundland coast to Ireland coast
+
+tscolnames = ['name','subindex','product']
+
 def data_for_pcolormesh(array, shading:str):
     """Xarray array to usuable things"""
     lats = array.latitude.values # Interpreted as northwest corners (90 is in there)
