@@ -4,6 +4,13 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from typing import Union
+
+"""
+Resampling functionalities
+timeseries / predictand extraction?
+"""
+
 class Anomalizer(object):
 
     def __init__(self):
@@ -95,3 +102,62 @@ def lagged_resample(combined, separation = 0, firstmonth = 12, lastmonth = 12, n
     X.columns.names = ['variables','i_interval']
     #X.columns = pd.MultiIndex.from_tuples(X.columns) # Should be done before unstacking
     return X, y, cal # Also return the calendar for bookkeeping.
+
+def makemask(region_dict) -> xr.DataArray:
+    """
+    Highest resolution (0.1 degree) gridded mask
+    region dict is a nested dict containing (lonmin, latmin, lonmax, latmax) 
+    example: 
+    dict(include = {'italy':(8,35,18,45.63)},                                                                   exclude = {'eastadriatic':(15,43,20,48)})
+    """
+    rrmon = xr.open_zarr('/scistor/ivm/jsn295/Medi/monthly/rr_mon_ens_mean_0.1deg_reg_v27.0e.zarr/')['rr']
+    example = rrmon.isel(time = 0, drop =True)
+    mask = xr.DataArray(np.full_like(example, 0), coords = example.coords)
+    def set_subset_to(lonmin, latmin, lonmax, latmax, array, value):
+        lons = array.sel(longitude = slice(lonmin, lonmax)).longitude
+        lats = array.sel(latitude = slice(latmin, latmax)).latitude
+        array.loc[lats,lons] = value # cannot do .sel based assignment
+    for args in region_dict['include'].values():
+        set_subset_to(*args, array = mask, value = 1)
+    for args in region_dict['exclude'].values():
+        set_subset_to(*args, array = mask, value = 0)
+    return mask
+
+def mask_reduce(mask: xr.DataArray, data: Union[pd.DataFrame,xr.DataArray], 
+        datalocs: pd.DataFrame = None, what: str = 'mean', return_masked: bool = False) -> pd.Series:
+    """
+    Gridded mask, data either station data or also gridded
+    if station data then a separate frame should be supplied with locations
+    indexed by station ids.
+    """
+    if isinstance(data, xr.DataArray):
+        mask = mask.reindex_like(data, method = 'nearest') # Reindexing if possible resolution mismatch
+        masked = xr.where(mask,data,np.nan)
+        func = getattr(masked, what)
+        result = func(['longitude','latitude']).to_pandas()
+    else:
+        print('assuming station data')
+        assert not (datalocs is None), 'provide frame with station locations'
+        ind = pd.MultiIndex.from_frame(datalocs[['LAT','LON']], names = ['latitude','longitude'])
+        #ids = pd.Series(datalocs.index, index = ind)
+        # Stacking and xr.DataArray.reindex fails (no nearest for multiindex), therefore loop
+        within = pd.Series([int(mask.sel(latitude = lat, longitude = lon, method = 'nearest')) for lat,lon in ind], index = datalocs.index)
+        within = within.loc[within == 1]
+        masked = data.loc[:,within.index]
+        func = getattr(masked, what)
+        result = func(axis = 1)
+    if return_masked:
+        return result, masked
+    else:
+        return result
+
+def average_within_mask(*args, minsamples: int = 1, **kwargs) -> pd.Series: 
+    """
+    averaging either stationdata or gridded data,
+    based on gridded mask
+    """
+    series = mask_reduce(*args, **kwargs, what = 'mean')
+    if minsamples > 1:
+        counts = mask_reduce(*args, **kwargs, what = 'count')
+        series.iloc[counts.values < minsamples] = np.nan
+    return series
