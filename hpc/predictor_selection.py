@@ -16,6 +16,7 @@ sys.path.append(os.path.expanduser('~/Documents/Medley'))
 from scripts.prepare_monthly_ts_data import get_monthly_data
 from Medley.utils import tscolnames
 from Medley.preprocessing import Anomalizer, single_target_lagged_resample, simultaneous_resample, makemask, average_within_mask, multi_target_lagged_resample
+from Medley.crossval import SpatiotemporalSplit
 
 warnings.simplefilter('ignore',category=RuntimeWarning)
 warnings.simplefilter('ignore',category=UserWarning)
@@ -43,14 +44,16 @@ experiment = dict(
     endyear = 2023,
     fraction_valid = 0.8, # Fraction non-nan required in desired window
     cv_kwargs = dict(
-        a=None,
+        n_temporal=5,
         ),
     estimator_kwargs = dict(
-        ntrees = 500,
+        ntrees = 50,
         ),
     sequential_kwargs = dict(
-        k_features='parsimonious',
+        k_features=2,
         forward=True,
+        scoring='r2',
+        n_jobs=10,
         ),
     )
 
@@ -86,13 +89,16 @@ def main(target_region, target_var, minsamples, resampling, resampling_kwargs, s
     ym = ym.loc[Xm.index,:]
 
     model = RandomForestRegressor()
-    
-    # cv has to be an iterator
-    #sfs = SequentialFeatureSelector(model = model, cv = cv, **sequential_kwargs)
-    return Xm, ym
+    # cv has to be an iterator, providing train and test indices. Can still overlap from season to season
+    # Todo: make contigouus and seasonal?
+    cv_kwargs['time_dim'] = Xm.index  
+    cv = SpatiotemporalSplit(**cv_kwargs)
+    sfs = SequentialFeatureSelector(estimator = model, cv = cv, **sequential_kwargs)
+    sfs.fit(X = Xm, y=ym.squeeze())
+    return sfs 
 
 if __name__ == "__main__":
     print(experiment)
     with open(experimentpath / 'experiment.json', mode = 'wt') as f:
         json.dump(experiment, fp = f)
-    Xm, ym = main(**experiment)
+    sfs = main(**experiment)
