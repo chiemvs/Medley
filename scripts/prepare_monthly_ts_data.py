@@ -79,7 +79,7 @@ def eke_series():
     return collection.loc[:,(slice(None),slice(None),['ERA5'])]
 
 
-def get_monthly_data(force_update: bool = False):
+def make_monthly_data(force_update: bool = False):
     """
     Main function, reads data if stored
     else will run the downloading and processing (or when update is forced).
@@ -103,5 +103,5 @@ def get_monthly_data(force_update: bool = False):
     return table
 
 if __name__ == '__main__':
-    df = get_monthly_data(force_update = False).to_pandas()
+    df = make_monthly_data(force_update = False).to_pandas()
     #collection = eke_series()

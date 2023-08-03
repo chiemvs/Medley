@@ -5,6 +5,8 @@ import pandas as pd
 import xarray as xr
 
 from typing import Union
+from pathlib import Path
+
 
 """
 Resampling functionalities
@@ -196,3 +198,4 @@ def average_within_mask(*args, minsamples: int = 1, **kwargs) -> pd.Series:
         counts = mask_reduce(*args, **kwargs, what = 'count')
         series.iloc[counts.values < minsamples] = np.nan
     return series
+
