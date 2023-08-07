@@ -173,7 +173,6 @@ def mask_reduce(mask: xr.DataArray, data: Union[pd.DataFrame,xr.DataArray],
         func = getattr(masked, what)
         result = func(['longitude','latitude']).to_pandas()
     else:
-        print('assuming station data')
         assert not (datalocs is None), 'provide frame with station locations'
         ind = pd.MultiIndex.from_frame(datalocs[['LAT','LON']], names = ['latitude','longitude'])
         #ids = pd.Series(datalocs.index, index = ind)

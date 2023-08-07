@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import uuid
 import warnings
 import xarray as xr
 import numpy as np
@@ -26,10 +27,16 @@ experimentpath = Path('/scistor/ivm/jsn295/Medi/predselec/')
 experiment = dict( 
     prep_kwargs= dict(
         target_region = dict(
-            include = {'iberia':(-9.8,35.98,3.6,43.8), 'france_italy':(4,43,13.4,45.63),},
-            exclude = {'islands':(0.79,35.2,4.6,40.4),'north_africa':(-1.450,34.457,11.217,36.972),}
+            include = {
+                'iberia':(-9.8,35.98,8,44.6),
+                'italy':(8,35,18,45.63),},
+            exclude = {
+                'north_africa':(-1.450,34.457,11.217,36.972),
+                'eastadriatic':(15,43,20,48),
+                'tunesia':(5,30,12,38),
+                'pyrenees':(-2,41.8,3.7,45.63),}
             ),
-        target_var = 'RR',
+        target_var = 'SPI3',
         minsamples = 10, # numer of stations
         resampling = 'multi', # whether multiple targets / samples are desired per anchor year
         resampling_kwargs = dict(
@@ -37,22 +44,22 @@ experiment = dict(
             n = 1, # number of lags
             separation = 0, #step per lag
             target_agg = 1, # ignored if resampling == 'multi'
-            firstmonth = 11, # How to define the winter period (with lastmonth)
+            firstmonth = 1, # How to define the winter period (with lastmonth)
             lastmonth = 3,
             ),
         ),
-    startyear = 1980, # To remove bottleneck data
+    startyear = 1950, # To remove bottleneck data
     endyear = 2023,
     fraction_valid = 0.8, # Fraction non-nan required in desired window
     cv_kwargs = dict(
-        n_temporal=10,
+        n_temporal=5,
         ),
     estimator_kwargs = dict(
         n_estimators = 500,
-        max_depth = 5,
+        max_depth = 10,
         ),
     sequential_kwargs = dict(
-        k_features=6,
+        k_features=10,
         forward=True,
         scoring='r2',
         n_jobs=10,
@@ -89,7 +96,10 @@ def main(prep_kwargs, startyear, endyear, fraction_valid, cv_kwargs, estimator_k
     return sfs, cv 
 
 if __name__ == "__main__":
+    expid = uuid.uuid4().hex
     print(experiment)
-    with open(experimentpath / 'experiment.json', mode = 'wt') as f:
+    with open(experimentpath / f'{expid}_experiment.json', mode = 'wt') as f:
         json.dump(experiment, fp = f)
     sfs, cv = main(**experiment)
+    results = pd.DataFrame(sfs.get_metric_dict()).T
+    results.to_csv(experimentpath / f'{expid}_results.csv', sep = ';')
