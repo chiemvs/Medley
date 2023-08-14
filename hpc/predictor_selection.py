@@ -21,6 +21,8 @@ from Medley.crossval import SpatiotemporalSplit
 warnings.simplefilter('ignore',category=RuntimeWarning)
 warnings.simplefilter('ignore',category=UserWarning)
 
+n_jobs = int(sys.argv[1])
+
 datapath = Path('/scistor/ivm/jsn295/Medi/monthly/')
 experimentpath = Path('/scistor/ivm/jsn295/Medi/predselec/')
 
@@ -41,10 +43,10 @@ experiment = dict(
         resampling = 'multi', # whether multiple targets / samples are desired per anchor year
         resampling_kwargs = dict(
             precursor_agg = 1, # Number of months
-            n = 1, # number of lags
+            n = 3, # number of lags
             separation = 0, #step per lag
             target_agg = 1, # ignored if resampling == 'multi'
-            firstmonth = 1, # How to define the winter period (with lastmonth)
+            firstmonth = 12, # How to define the winter period (with lastmonth)
             lastmonth = 3,
             ),
         ),
@@ -57,12 +59,13 @@ experiment = dict(
     estimator_kwargs = dict(
         n_estimators = 500,
         max_depth = 10,
+        min_samples_split=0.01,
         ),
     sequential_kwargs = dict(
-        k_features=10,
+        k_features=20,
         forward=True,
         scoring='r2',
-        n_jobs=10,
+        n_jobs=n_jobs,
         ),
     )
 
@@ -96,7 +99,7 @@ def main(prep_kwargs, startyear, endyear, fraction_valid, cv_kwargs, estimator_k
     return sfs, cv 
 
 if __name__ == "__main__":
-    expid = uuid.uuid4().hex
+    expid = uuid.uuid4().hex[:10]
     print(experiment)
     with open(experimentpath / f'{expid}_experiment.json', mode = 'wt') as f:
         json.dump(experiment, fp = f)
