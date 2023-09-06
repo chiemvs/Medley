@@ -14,8 +14,10 @@ timeseries / predictand extraction?
 """
 
 class Anomalizer(object):
-
     def __init__(self):
+        """
+        Not really needed if using SPI, except perhaps for predictors?
+        """
         pass
 
     def fit(self, X : pd.DataFrame):
@@ -198,3 +200,27 @@ def average_within_mask(*args, minsamples: int = 1, **kwargs) -> pd.Series:
         series.iloc[counts.values < minsamples] = np.nan
     return series
 
+def remove_X_bottleneck(X: pd.DataFrame, y: pd.DataFrame, startyear: int = None, endyear: int = None, fraction_valid: float = 0.8) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Several X variables have little data and would be bottlenecks when dropna
+    EKE only 1980-2018
+    MJO only 1980-now
+    AMOC only 2004-2020
+    Therefore keep only those variables with a minimum fraction of valid data
+    within a specified start/end window
+    and then do dropna
+    """
+    # Years from which data is required, dropping bottleneck variables
+    if isinstance(X.index, pd.DatetimeIndex):
+        indexslice = X.index.year.slice_indexer(startyear,endyear)
+        X = X.iloc[indexslice,:]
+    else: # Assuming first level is an integer based year index (anchor year)
+        yearslice = slice(startyear,endyear)
+        X = X.loc[yearslice,:]
+    insufficient = X.columns[X.count(axis = 0) < (len(X)*fraction_valid)]
+    print(f'dropping predictors: {insufficient}')
+    X = X.drop(insufficient, axis = 1).dropna()
+    y = y.loc[X.index,:]
+    print(f'samples left: {y.size}')
+    print(f'features left: {X.shape[1]}')
+    return X, y

@@ -10,12 +10,12 @@ import pandas as pd
 from pathlib import Path
 from joblib import parallel_backend
 
-from sklearn.ensemble import RandomForestRegressor
 from mlxtend.feature_selection import SequentialFeatureSelector
 
 sys.path.append(os.path.expanduser('~/Documents/Medley'))
-from Medley.preprocessing import Anomalizer
+from Medley.preprocessing import Anomalizer, remove_X_bottleneck
 from Medley.dataloading import prep_and_resample
+from Medley.estimators import return_estimator
 from Medley.crossval import SpatiotemporalSplit
 
 warnings.simplefilter('ignore',category=RuntimeWarning)
@@ -43,24 +43,28 @@ experiment = dict(
         resampling = 'multi', # whether multiple targets / samples are desired per anchor year
         resampling_kwargs = dict(
             precursor_agg = 1, # Number of months
-            n = 3, # number of lags
+            n = 1, # number of lags
             separation = 0, #step per lag
-            target_agg = 1, # ignored if resampling == 'multi'
-            firstmonth = 12, # How to define the winter period (with lastmonth)
+            target_agg = 1, # ignored if resampling == 'single', as aggregation will be based on first/last
+            firstmonth = 1, # How to define the winter period (with lastmonth)
             lastmonth = 3,
             ),
         ),
-    startyear = 1950, # To remove bottleneck data
-    endyear = 2023,
-    fraction_valid = 0.8, # Fraction non-nan required in desired window
+    bottleneck_kwargs = dict(
+        startyear = 1979, # To remove bottleneck data
+        endyear = 2023,
+        fraction_valid = 0.8, # Fraction non-nan required in desired window
+        ),
     cv_kwargs = dict(
         n_temporal=5,
         ),
-    estimator_kwargs = dict(
-        n_estimators = 500,
-        max_depth = 10,
-        min_samples_split=0.01,
-        ),
+    estimator = 'linreg',
+    estimator_kwargs = dict(),
+    #estimator_kwargs = dict(
+    #    n_estimators = 500,
+    #    max_depth = 10,
+    #    min_samples_split=0.01, # With max about 200 samples, anything below 0.01 does not make sense
+    #    ),
     sequential_kwargs = dict(
         k_features=20,
         forward=True,
@@ -70,7 +74,7 @@ experiment = dict(
     )
 
 
-def main(prep_kwargs, startyear, endyear, fraction_valid, cv_kwargs, estimator_kwargs, sequential_kwargs):
+def main(prep_kwargs, bottleneck_kwargs, cv_kwargs, estimator, estimator_kwargs, sequential_kwargs):
     """
     Data loading and resampling wrapped in preparation function
     """
@@ -80,16 +84,9 @@ def main(prep_kwargs, startyear, endyear, fraction_valid, cv_kwargs, estimator_k
     # EKE only 1980-2018
     # MJO only 1980-now
     # AMOC only 2004-2020
-    timeslice = slice(startyear,endyear)
-    Xm = Xm.loc[timeslice,:]
-    insufficient = Xm.columns[Xm.count(axis = 0) < (len(Xm)*fraction_valid)]
-    print(f'dropping predictors: {insufficient}')
-    Xm = Xm.drop(insufficient, axis = 1).dropna()
-    ym = ym.loc[Xm.index,:]
-    print(f'samples left: {ym.size}')
-    print(f'features left: {Xm.shape[1]}')
-
-    model = RandomForestRegressor(**estimator_kwargs)
+    Xm, ym = remove_X_bottleneck(Xm, ym, **bottleneck_kwargs)
+    modelclass = return_estimator(estimator)
+    model = modelclass(**estimator_kwargs)
     # cv has to be an iterator, providing train and test indices. Can still overlap from season to season
     # Todo: make contigouus and seasonal?
     cv_kwargs['time_dim'] = Xm.index  

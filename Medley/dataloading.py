@@ -35,7 +35,7 @@ def prep_ecad(target_region: dict, target_var: str = 'RR', minsamples: int = 10)
     target = average_within_mask(mask = mask, data = ecad, datalocs = ecad_locs, minsamples=minsamples)
     return target
 
-def prep_and_resample(target_region: dict, target_var: str = 'RR', minsamples: int = 10, resampling : str = 'single', resampling_kwargs : dict = {}):
+def prep_and_resample(target_region: dict, target_var: str = 'RR', minsamples: int = 10, resampling : str = 'single', resampling_kwargs : dict = {}) -> tuple[pd.DataFrame, pd.DataFrame, lilio.Calendar]:
     """
     target region dictionary
     Loading ECAD data

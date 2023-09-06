@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-#SBATCH --job-name="shal_for"
+#SBATCH --job-name="lreg_b"
 #SBATCH --cpus-per-task=10
 #SBATCH --time=48:00:00
 #SBATCH --mem=15gb
