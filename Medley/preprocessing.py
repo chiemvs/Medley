@@ -200,7 +200,7 @@ def average_within_mask(*args, minsamples: int = 1, **kwargs) -> pd.Series:
         series.iloc[counts.values < minsamples] = np.nan
     return series
 
-def remove_X_bottleneck(X: pd.DataFrame, y: pd.DataFrame, startyear: int = None, endyear: int = None, fraction_valid: float = 0.8) -> tuple[pd.DataFrame, pd.DataFrame]:
+def remove_bottleneck(X: pd.DataFrame, y: pd.DataFrame, startyear: int = None, endyear: int = None, fraction_valid: float = 0.8) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Several X variables have little data and would be bottlenecks when dropna
     EKE only 1980-2018
@@ -208,7 +208,7 @@ def remove_X_bottleneck(X: pd.DataFrame, y: pd.DataFrame, startyear: int = None,
     AMOC only 2004-2020
     Therefore keep only those variables with a minimum fraction of valid data
     within a specified start/end window
-    and then do dropna
+    and then do dropna (both y and x-based)
     """
     # Years from which data is required, dropping bottleneck variables
     if isinstance(X.index, pd.DatetimeIndex):
@@ -220,7 +220,10 @@ def remove_X_bottleneck(X: pd.DataFrame, y: pd.DataFrame, startyear: int = None,
     insufficient = X.columns[X.count(axis = 0) < (len(X)*fraction_valid)]
     print(f'dropping predictors: {insufficient}')
     X = X.drop(insufficient, axis = 1).dropna()
-    y = y.loc[X.index,:]
+    y = y.dropna()
+    intersection = X.index.intersection(y.index)
+    X = X.loc[intersection,:]
+    y = y.loc[intersection,:]
     print(f'samples left: {y.size}')
     print(f'features left: {X.shape[1]}')
     return X, y

@@ -13,7 +13,7 @@ from joblib import parallel_backend
 from mlxtend.feature_selection import SequentialFeatureSelector
 
 sys.path.append(os.path.expanduser('~/Documents/Medley'))
-from Medley.preprocessing import Anomalizer, remove_X_bottleneck
+from Medley.preprocessing import Anomalizer, remove_bottleneck
 from Medley.dataloading import prep_and_resample
 from Medley.estimators import return_estimator
 from Medley.crossval import SpatiotemporalSplit
@@ -43,7 +43,7 @@ experiment = dict(
         resampling = 'multi', # whether multiple targets / samples are desired per anchor year
         resampling_kwargs = dict(
             precursor_agg = 1, # Number of months
-            n = 1, # number of lags
+            n = 3, # number of lags
             separation = 0, #step per lag
             target_agg = 1, # ignored if resampling == 'single', as aggregation will be based on first/last
             firstmonth = 1, # How to define the winter period (with lastmonth)
@@ -51,20 +51,21 @@ experiment = dict(
             ),
         ),
     bottleneck_kwargs = dict(
-        startyear = 1979, # To remove bottleneck data
+        startyear = 1950, # To remove bottleneck data
         endyear = 2023,
         fraction_valid = 0.8, # Fraction non-nan required in desired window
         ),
     cv_kwargs = dict(
         n_temporal=5,
         ),
-    estimator = 'linreg',
-    estimator_kwargs = dict(),
-    #estimator_kwargs = dict(
-    #    n_estimators = 500,
-    #    max_depth = 10,
-    #    min_samples_split=0.01, # With max about 200 samples, anything below 0.01 does not make sense
-    #    ),
+    estimator = 'xgbreg',
+    #estimator_kwargs = dict(),
+    estimator_kwargs = dict(
+        n_estimators = 100,
+        max_depth = 4,
+        learning_rate = 0.1,
+        #min_samples_split=0.01, # With max about 200 samples, anything below 0.01 does not make sense
+        ),
     sequential_kwargs = dict(
         k_features=20,
         forward=True,
@@ -84,7 +85,7 @@ def main(prep_kwargs, bottleneck_kwargs, cv_kwargs, estimator, estimator_kwargs,
     # EKE only 1980-2018
     # MJO only 1980-now
     # AMOC only 2004-2020
-    Xm, ym = remove_X_bottleneck(Xm, ym, **bottleneck_kwargs)
+    Xm, ym = remove_bottleneck(Xm, ym, **bottleneck_kwargs)
     modelclass = return_estimator(estimator)
     model = modelclass(**estimator_kwargs)
     # cv has to be an iterator, providing train and test indices. Can still overlap from season to season
