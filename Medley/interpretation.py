@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import warnings
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -54,7 +55,7 @@ def return_experiments(expids: Union[str,list,set]) -> dict:
         returndicts.update({expid : _extract_properties(expid)})
     return returndicts
 
-def return_unique_values(key: str) -> list:
+def return_unique_values(key: str) -> pd.Series:
     """
     Returns the unique values for a key, plus a list of
     experiment ids containing that value
@@ -70,7 +71,12 @@ def return_unique_values(key: str) -> list:
             except KeyError: # If it is not yet present
                 expidlist = [expid]
             returndict.update({item:expidlist})
-    return returndict
+    # Revamping to series
+    returnseries = {value:pd.Series(ids) for value, ids in returndict.items()}
+    returnseries = pd.concat(returnseries, axis = 0)
+    returnseries.index.names = [key,'count']
+    returnseries.name = 'expid'
+    return returnseries 
 
 
 def load_pred_results(expid: str) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -94,10 +100,14 @@ def load_pred_results(expid: str) -> tuple[pd.DataFrame, pd.DataFrame]:
 def compare_scores(expids : Union[list,set], cv = True) -> pd.DataFrame:
     scoredfs = {}
     for expid in expids:
-        df, cv_scores = load_pred_results(expid)
-        if cv:
-            scoredfs.update({expid:cv_scores})
-        else:
-            scoredfs.update({expid:df[['avg_score']]})
+        try:
+            df, cv_scores = load_pred_results(expid)
+            if cv:
+                scoredfs.update({expid:cv_scores})
+            else:
+                scoredfs.update({expid:df[['avg_score']]})
+        except FileNotFoundError:
+            warnings.warn(f'results file for {expid} not found. failed or still running. skipping to next')
     scoredf = pd.concat(scoredfs, axis = 0)
+    scoredf.index.names = ['expid'] + scoredf.index.names[-1:]
     return scoredf

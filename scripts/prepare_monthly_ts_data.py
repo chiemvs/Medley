@@ -62,6 +62,16 @@ def vortex():
     ts.columns = pd.MultiIndex.from_tuples([('vortex_u20',7080,'era5')], names = tscolnames)
     return ts
 
+def indian_ocean():
+    """
+    Indian ocean dipole and its east and west constituents
+    western equatorial Indian Ocean (50E-70E and 10S-10N) 
+    south eastern equatorial Indian Ocean (90E-110E and 10S-0N). 
+    difference (west-east) is IOD or Dipole Mode Index (DMI)
+    """
+    iodspath = datapath / 'monthly_iods.h5'
+    return pd.read_hdf(iodspath, key = 'iods')
+
 def eke_series():
     """
     Only the atlantic domain
@@ -92,9 +102,11 @@ def make_monthly_data(force_update: bool = False):
         era_df = all_u_series() # jet stream u's
         vortex_df = vortex() # stratospheric vortex u's
         eke_df = eke_series() 
+        iod_df = indian_ocean()
         complete = climexp_df.join(era_df, how = 'outer') # Should not add rows to climexp_df as that is much larger.
         complete = complete.join(vortex_df, how = 'outer')
         complete = complete.join(eke_df, how = 'outer')
+        complete = complete.join(iod_df, how = 'outer')
         table = pa.Table.from_pandas(complete) # integer multiindex level becomes text
 
         pq.write_table(table, finalpath)
@@ -104,4 +116,4 @@ def make_monthly_data(force_update: bool = False):
 
 if __name__ == '__main__':
     df = make_monthly_data(force_update = False).to_pandas()
-    #collection = eke_series()
+    #collection = indian_ocean()

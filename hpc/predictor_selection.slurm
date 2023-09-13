@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-#SBATCH --job-name="xgb_r2"
+#SBATCH --job-name="xgb_mse"
 #SBATCH --cpus-per-task=20
 #SBATCH --time=48:00:00
 #SBATCH --mem=15gb

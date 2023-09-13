@@ -61,16 +61,17 @@ experiment = dict(
     estimator = 'xgbreg',
     #estimator_kwargs = dict(),
     estimator_kwargs = dict(
-        n_estimators = 100,
+        n_estimators = 200,
         max_depth = 4,
-        learning_rate = 0.1,
+        learning_rate = 0.01,
+        n_jobs=n_jobs,
         #min_samples_split=0.01, # With max about 200 samples, anything below 0.01 does not make sense
         ),
     sequential_kwargs = dict(
-        k_features=20,
+        k_features=30,
         forward=True,
-        scoring='r2',
-        n_jobs=n_jobs,
+        scoring='neg_mean_squared_error',
+        n_jobs=1,
         ),
     )
 

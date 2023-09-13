@@ -37,6 +37,7 @@ def decimal_year_to_datetime(decyear: float) -> datetime:
 
 def process_ascii(timestamps: array.array, values: array.array, miss_val = -999.9) -> pd.DataFrame:
     """
+    both timestamps and values should be 1D
     Missing value handling, and handling the case with multiple monthly values for one yearly timestamp
     """
     # Missing values
