@@ -10,6 +10,46 @@ from datetime import datetime, timedelta
 udomains = {'med':(-8.5,42), # Portugal to eastern turkey
         'atl':(-50,-10)} # from Newfoundland coast to Ireland coast
 
+west = dict(include = {
+    'iberia':(-9.8,35.98,3.6,43.8),
+    'france_italy':(4,43,13.4,45.63),
+    },
+    exclude = {
+    'islands':(0.79,35.2,4.6,40.4),
+    'north_africa':(-1.450,34.457,11.217,36.972),
+    })
+
+medwest = dict(include = {
+    'iberia':(-9.8,35.98,8,44.1),
+    'italy':(8,35,18.6,46),
+    },
+    exclude = {
+    'north_africa':(-1.450,34.457,11.217,36.972),
+    'eastadriatic':(15,42.2,20,48),
+    'slovenia':(14,44.1,20,48),
+    'tunesia':(5,30,12,38),
+    'pyrenees':(-2,41.8,2.4,45.63),
+    #'alps':(7.5,44.9,11,45.63),
+    })
+
+centraleast = dict(include = {
+    'greeceplus':(19,34,28.5,42.7),
+    },
+    exclude = {})
+
+east = dict(include = {
+    'turkeycyprus':(29,32,37,38),
+    },
+    exclude = {})
+
+medeast = dict(include = {
+    'greeceplus':(18.9,34,37,42.7),
+    'israel':(32,30,37,38),
+    },
+    exclude = {})
+
+regions = {'west':west,'medwest':medwest,'centraleast':centraleast,'east':east,'medeast':medeast}
+
 tscolnames = ['name','subindex','product']
 
 def data_for_pcolormesh(array, shading:str):
