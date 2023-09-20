@@ -6,29 +6,23 @@ import pandas as pd
 
 from sklearn.model_selection import cross_val_predict, cross_val_score, cross_validate
 from sklearn.metrics import mean_absolute_error, make_scorer
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
 sys.path.append(os.path.expanduser('~/Documents/Medley'))
 
-from Medley.preprocessing import Anomalizer, remove_bottleneck
+from Medley.preprocessing import Anomalizer, remove_bottleneck, make_pipeline
 from Medley.dataloading import prep_and_resample, prep_ecad, get_monthly_data
 from Medley.estimators import return_estimator
 from Medley.crossval import SpatiotemporalSplit
 from Medley.interpretation import load_pred_results
+from Medley.utils import regions
 
 warnings.simplefilter('ignore',category=RuntimeWarning)
 warnings.simplefilter('ignore',category=UserWarning)
 
 prep_kwargs= dict(
-    target_region = dict(
-        include = {
-            'iberia':(-9.8,35.98,8,44.6),
-            'italy':(8,35,18,45.63),},
-        exclude = {
-            'north_africa':(-1.450,34.457,11.217,36.972),
-            'eastadriatic':(15,43,20,48),
-            'tunesia':(5,30,12,38),
-            'pyrenees':(-2,41.8,3.7,45.63),}
-        ),
+    target_region = regions['medwest'],
     target_var = 'SPI3',
     minsamples = 10, # numer of stations
     resampling = 'multi', # whether multiple targets / samples are desired per anchor year
@@ -49,24 +43,30 @@ bottleneck_kwargs = dict(
 cv_kwargs = dict(
     n_temporal=5,
     )
-#estimator = 'climreg'
+#estimator = 'ridreg'
 #estimator_kwargs = dict()
 estimator = 'rfreg'
 estimator_kwargs = dict(
-    n_estimators = 100,
-    max_depth = 10,
+    n_estimators = 1000,
+    max_depth = 5,
     min_samples_split=0.01, # With max about 200 samples, anything below 0.01 does not make sense
+    max_features = 0.3,
+    )
+pipeline_kwargs = dict(
+    anom = False,
+    scale = False,
     )
 
 if __name__ == '__main__':
-    #X, y, cal = prep_and_resample(**prep_kwargs)
-    y = prep_ecad(prep_kwargs['target_region'], 'SPI3').to_frame()
-    X = get_monthly_data()
+    X, y, cal = prep_and_resample(**prep_kwargs)
+    #y = prep_ecad(prep_kwargs['target_region'], 'SPI3').to_frame()
+    #X = get_monthly_data()
 
-    # Extraction of selected predictors, from a good experiment
-    result, cv_scores = load_pred_results('deb4021d58')
-    prednames = result.loc[5,'feature_names']
-    X = X.loc[:,list(prednames)]
+    ## Extraction of selected predictors, from a good experiment
+    #result, cv_scores = load_pred_results('deb4021d58')
+    #prednames = result.loc[5,'feature_names']
+    ##X = X.loc[:,list(prednames)]
+    #X = X.loc[:,[p[0] for p in prednames]]
 
     X, y = remove_bottleneck(X, y, **bottleneck_kwargs)
     modelclass = return_estimator(estimator)
@@ -77,7 +77,16 @@ if __name__ == '__main__':
     cv_kwargs['time_dim'] = X.index  
     cv = SpatiotemporalSplit(**cv_kwargs)
 
-    #yhats = cross_val_predict(model, X = X, y = y.squeeze(), cv = cv)
+    # At this point we should be able to anomalize (in CV mode)
+    #a = Anomalizer()
+    #p = Pipeline([('anom',a),(estimator,model)])
+
+    #p = make_pipeline(estimator = model, **pipeline_kwargs)
+    #p.fit(X, y.squeeze())
+
+    #yhats = cross_val_predict(p, X = X, y = y.squeeze(), cv = cv)
+    #yhats2 = cross_val_predict(model, X = X, y = y.squeeze(), cv = cv)
     #scores = cross_val_score(model, X = X, y = y.squeeze(), cv = cv, scoring = 'neg_mean_absolute_error')
     scores = cross_validate(model, X = X, y = y.squeeze(), cv = cv, scoring = ['r2','neg_mean_absolute_error'])
+    #scores2 = cross_validate(p, X = X, y = y.squeeze(), cv = cv, scoring = ['r2','neg_mean_absolute_error'])
 

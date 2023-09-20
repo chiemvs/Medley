@@ -7,36 +7,95 @@ import xarray as xr
 from typing import Union
 from pathlib import Path
 
+from sklearn.base import BaseEstimator
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+
 
 """
 Resampling functionalities
 timeseries / predictand extraction?
 """
 
-class Anomalizer(object):
-    def __init__(self):
+class Anomalizer(BaseEstimator):
+    def __init__(self, startyear : int = None, endyear: int = None):
         """
-        Not really needed if using SPI, except perhaps for predictors?
+        Anomalizer by subtracting month-in-year climatological value
+        Not really needed if using SPI, perhaps only for predictors
+        Possible to set the baseperiod (endyear = inclusive),
+        if not set (default) then all available data is used to estimate climate
+        Should be able to anomalize both  
         """
-        pass
+        self.startyear = startyear
+        self.endyear = endyear
 
-    def fit(self, X : pd.DataFrame):
+    def __repr__(self):
+        return f'Anomalizer(startyear = {self.startyear}, endyear = {self.endyear})'
+
+    def _get_subsetter(self):
+        """
+        Logic called to build a slice object for an X based on
+        years set at initialization
+        returns None if these are not set
+        """
+        isinput = [ (not y is None) for y in [self.startyear, self.endyear]]
+        if all(isinput): 
+            startyear = f'{self.startyear}-01-01'
+            endyear = f'{self.endyear}-12-31'
+            subset = slice(pd.Timestamp(startyear),pd.Timestamp(endyear))
+        elif sum(isinput) == 1:
+            raise NotImplementedError('set both start and endyear of the Anomalizer, or none at all')
+        else:
+            subset = None
+        return subset
+
+    def _get_month_index(self, X : pd.DataFrame):
+        if isinstance(X.index, pd.DatetimeIndex):
+            indexer = X.index.month
+        elif 'anchor_month' in X.index.names: # Multi resampling
+            indexer = X.index.get_level_values('anchor_month')
+        else:
+            raise NotImplementedError('Month-based anomalizing not compatible with single target resampling with only one value per year. Consider anomalizing before resampling')
+        return indexer
+
+    def fit(self, X : pd.DataFrame, y = None):
         """
         Fitting on X, do not provide holdout  
         """
-        self.climate = X.groupby(X.index.month).mean()
+        subset = self._get_subsetter()
+        if not (subset is None):
+            if isinstance(X.index, pd.DatetimeIndex):
+                X = X.loc[subset,:] 
+            else: # Indexed by anchor_year
+                X = X.loc[slice(subset.start.year,subset.stop.year + 1),:]
+        grouper = self._get_month_index(X)
+        self.climate = X.groupby(grouper, axis = 0).mean()
+        return self
 
     def transform(self, X: pd.DataFrame):
         new = X.copy()
-        new.index = new.index.month
+        new.index = self._get_month_index(X) # creates double non-unique values in index
         new -= self.climate.loc[new.index,X.columns]
-        new.index = X.index
+        new.index = X.index # reset original index
         return new 
 
-    def fit_transform(self, X):
+    def fit_transform(self, X, y = None):
         self.fit(X)
         return self.transform(X)
-        
+
+def make_pipeline(estimator, anom = False, anom_kwargs = dict(), scale = False, scale_kwargs = dict()) -> Pipeline:
+    """
+    Initializes preprocessing objects and puts those in a pipeline
+    with an initialized estimator as final step
+    """
+    assert not ((not anom) and (not scale)), 'No need to construct a pipeline if anom and std are False'
+    pipeline = list()
+    if anom:
+        pipeline.append(('anom',Anomalizer(**anom_kwargs)))
+    if scale:
+        pipeline.append(('scale',StandardScaler(**scale_kwargs)))
+    pipeline.append(('estimator',estimator))
+    return Pipeline(pipeline)
 
 def monthly_resample_func(ds: xr.Dataset, how = 'mean') -> xr.Dataset:
     """
@@ -50,7 +109,7 @@ def monthly_resample_func(ds: xr.Dataset, how = 'mean') -> xr.Dataset:
         newds[varname].attrs.update({'resample':f'monthly_{how}'})
     return newds
 
-def simultaneous_resample(X, y, firstmonth = 12, lastmonth = 1, average = True):
+def simultaneous_resample(X : pd.DataFrame, y : pd.DataFrame, firstmonth = 12, lastmonth = 1, average = True):
     """
     lastmonth is inclusive
     """

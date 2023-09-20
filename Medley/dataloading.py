@@ -48,7 +48,10 @@ def prep_and_resample(target_region: dict, target_var: str = 'RR', minsamples: i
 
     # Define temporal sampling approaches
     if resampling == 'single':
-        resampling_kwargs.pop('target_agg')
+        try:
+            resampling_kwargs.pop('target_agg')
+        except KeyError:
+            pass
         Xm, ym, cm = single_target_lagged_resample(X = df, y = target, **resampling_kwargs) 
     elif resampling == 'multi':
         Xm, ym, cm = multi_target_lagged_resample(X = df, y = target, **resampling_kwargs) 

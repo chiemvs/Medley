@@ -5,7 +5,7 @@ import pandas as pd
 import xgboost as xgb
 
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 
 
 class LinearTrendRegressor(LinearRegression):
@@ -62,6 +62,7 @@ _estimators = {'rfreg':RandomForestRegressor,
         'rfresreg':RandomForestResidualRegressor,
         'rfclas':RandomForestClassifier,
         'linreg':LinearRegression,
+        'ridreg':Ridge,
         'climreg':LinearTrendRegressor,
         'xgbreg':xgb.XGBRegressor}
 
