@@ -59,7 +59,7 @@ class RandomForestResidualRegressor(RandomForestRegressor):
 
 
 _estimators = {'rfreg':RandomForestRegressor,
-        'rfresreg':RandomForestResidualRegressor,
+        'rfresreg':RandomForestResidualRegressor, # Currently cannot be applied in pipeline mode, becaue conversion to numpy, and because we need index
         'rfclas':RandomForestClassifier,
         'linreg':LinearRegression,
         'ridreg':Ridge,
@@ -67,6 +67,6 @@ _estimators = {'rfreg':RandomForestRegressor,
         'xgbreg':xgb.XGBRegressor}
 
 def return_estimator(estimator:str):
-    assert estimator in _estimators.keys(), f'choose one of {list(estimators.keys())}'
+    assert estimator in _estimators.keys(), f'choose one of {list(_estimators.keys())}'
     return _estimators[estimator]
 

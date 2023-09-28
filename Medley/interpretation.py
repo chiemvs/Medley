@@ -8,6 +8,14 @@ import pyarrow as pa
 
 from pathlib import Path
 from typing import Union
+from sklearn.pipeline import Pipeline
+
+try:
+    import shap
+except ImportError:
+    pass
+
+from .estimators import _estimators
 
 predselpath = Path('/scistor/ivm/jsn295/Medi/predselec/')
 all_expids = [ p.name.split('_')[0] for p in predselpath.glob('*.json')]
@@ -111,3 +119,53 @@ def compare_scores(expids : Union[list,set], cv = True) -> pd.DataFrame:
     scoredf = pd.concat(scoredfs, axis = 0)
     scoredf.index.names = ['expid'] + scoredf.index.names[-1:]
     return scoredf
+
+class BaseExplainer(object):
+    def explain(self, X):
+        """
+        This aggregates into a global importance 
+        but probably imperfectly so
+        """
+        self._attribute(X = X)
+        return self.values.median(axis = 0)
+
+class LinearModelExplainer(BaseExplainer):
+    """
+    use of coefficients. This overwrites the standard input*gradient
+    input times gradient (i.e. coefficient)
+    """
+    def __init__(self, model):
+        self.model = model
+
+    def _attribute(self, X):
+        coefs = self.model.coef_
+        self.values = X * coefs[np.newaxis,:] 
+
+    def explain(self, X):
+        coefs = self.model.coef_
+        return pd.Series(coefs, index = X.columns)
+        
+class TreeExplainer(shap.TreeExplainer, BaseExplainer):
+    """
+    Just a wrapper to define the method .explain()
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _attribute(self, X):
+        shap_values = super().shap_values(X)
+        self.values = pd.DataFrame(shap_values, index = X.index, columns = X.columns)
+
+def return_explainer(model):
+    """
+    Return the right and initialized explainer object 
+    """
+    if isinstance(model, Pipeline):
+        model = model[-1]
+    if isinstance(model, tuple(_estimators[key] for key in ['linreg','ridreg'])):
+        return LinearModelExplainer(model)
+    elif isinstance(model, tuple(_estimators[key] for key in ['rfreg','rfclas','xgbreg'])):
+        return TreeExplainer(model) 
+    else: # probably rgresreg
+        raise NotImplementedError(f'no explainer implemented for {type(model)}')
+
