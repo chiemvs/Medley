@@ -63,9 +63,9 @@ def return_experiments(expids: Union[str,list,set]) -> dict:
         returndicts.update({expid : _extract_properties(expid)})
     return returndicts
 
-def return_unique_values(key: str) -> pd.Series:
+def return_unique_values(key: str, reverse: bool = False) -> pd.Series:
     """
-    Returns the unique values for a key, plus a list of
+    Returns the unique values as keys, and the associated experiments as values
     experiment ids containing that value
     """
     dicts = {expid: _extract_properties(expid) for expid in all_expids}
@@ -84,7 +84,11 @@ def return_unique_values(key: str) -> pd.Series:
     returnseries = pd.concat(returnseries, axis = 0)
     returnseries.index.names = [key,'count']
     returnseries.name = 'expid'
-    return returnseries 
+    if reverse:
+        returnseries_reversed = pd.Series(returnseries.index.get_level_values(0), index = pd.Index(returnseries.values, name = 'expid'))
+        return returnseries_reversed
+    else:
+        return returnseries 
 
 
 def load_pred_results(expid: str) -> tuple[pd.DataFrame, pd.DataFrame]:
