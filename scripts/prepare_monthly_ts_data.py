@@ -33,12 +33,14 @@ def u_series(name, lonmin, lonmax, level = 250) -> pd.DataFrame:
     Extracting latitude of maximum, and strengths at
     40N and 55N
     """
-    path = datapath / f'monthly_zonalmean_u{level}_NH_{lonmin}E_{lonmax}E.nc'
-    da = xr.open_dataarray(path)
-    collection = da.idxmax('latitude').to_dataframe()
+    upath = datapath / f'monthly_zonalmean_u{level}_NH_{lonmin}E_{lonmax}E.nc'
+    uda = xr.open_dataarray(upath)
+    latpath = datapath / f'monthly_zonallatmax_u{level}_NH_{lonmin}E_{lonmax}E.nc'
+    latda = xr.open_dataarray(latpath)
+    collection = latda.to_dataframe()
     collection.columns = pd.MultiIndex.from_tuples([(f'{name}_u{level}_latmax',0,'era5')], names = tscolnames)
     for lat in range(20,70,10):
-        ts = da.sel(latitude = lat, drop = True).to_dataframe().astype(np.float32)
+        ts = uda.sel(latitude = lat, drop = True).to_dataframe().astype(np.float32)
         ts.columns = pd.MultiIndex.from_tuples([(f'{name}_u{level}',lat,'era5')], names = tscolnames)
         collection = collection.join(ts, how = 'left') # Indices should match so how is irrelevant.
     return collection
@@ -72,6 +74,14 @@ def indian_ocean():
     iodspath = datapath / 'monthly_iods.h5'
     return pd.read_hdf(iodspath, key = 'iods')
 
+def amoc_proxy():
+    """
+    based on hadisst fingerprint of:
+    Caesar, L., Rahmstorf, S., Robinson, A., Feulner, G., & Saba, V. (2018). Observed fingerprint of a weakening Atlantic Ocean overturning circulation. Nature, 556(7700), 191-196.
+    """
+    amocpath = datapath / 'monthly_amoc_proxy.h5' 
+    return pd.read_hdf(amocpath, key = 'amoc')
+
 def eke_series():
     """
     Only the atlantic domain
@@ -103,17 +113,19 @@ def make_monthly_data(force_update: bool = False):
         vortex_df = vortex() # stratospheric vortex u's
         eke_df = eke_series() 
         iod_df = indian_ocean()
+        amoc_df = amoc_proxy()
         complete = climexp_df.join(era_df, how = 'outer') # Should not add rows to climexp_df as that is much larger.
         complete = complete.join(vortex_df, how = 'outer')
         complete = complete.join(eke_df, how = 'outer')
         complete = complete.join(iod_df, how = 'outer')
+        complete = complete.join(amoc_df, how = 'outer')
         table = pa.Table.from_pandas(complete) # integer multiindex level becomes text
-
         pq.write_table(table, finalpath)
     else:
         table = pq.read_table(finalpath)
     return table
 
 if __name__ == '__main__':
+    #test = u_series(name='atlantic', lonmin = -50, lonmax = -10, level = 500)
+    #test2 = u_series(name='atlantic', lonmin = -8.5, lonmax = 42, level = 500)
     df = make_monthly_data(force_update = False).to_pandas()
-    #collection = indian_ocean()
