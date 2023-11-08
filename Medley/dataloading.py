@@ -22,27 +22,30 @@ def get_monthly_data():
     table = pq.read_table(finalpath)
     return table.to_pandas()
 
-def prep_ecad(target_region: dict, target_var: str = 'RR', minsamples: int = 10) -> pd.Series:
+def prep_ecad(target_region: dict, target_var: str = 'RR', minsamples: int = 10, shift: bool = False) -> pd.Series:
     """
     target region dictionary
     Loading ECAD data
+    possible to apply an (X-1) month shift when SPIX is the target_var
     """
     mask = makemask(target_region) 
-    df = get_monthly_data()
     ecad = pd.read_hdf(datapath / f'eca_preaggregated_{target_var}.h5')
-    ecad.index.name = 'time'
+    ecad.index.name = 'time' # Monthly DatetimeIndex
+    if shift and target_var.startswith('SPI'):
+        n_months = int(target_var[-1])
+        ecad.index = pd.date_range(end = ecad.index[-n_months], periods = len(ecad.index), freq = 'MS')
     ecad_locs = pd.read_hdf(datapath / f'eca_preaggregated_{target_var}_stations.h5')
     target = average_within_mask(mask = mask, data = ecad, datalocs = ecad_locs, minsamples=minsamples)
     return target
 
-def prep_and_resample(target_region: dict, target_var: str = 'RR', minsamples: int = 10, resampling : str = 'single', resampling_kwargs : dict = {}) -> tuple[pd.DataFrame, pd.DataFrame, lilio.Calendar]:
+def prep_and_resample(target_region: dict, target_var: str = 'RR', minsamples: int = 10, shift: bool = False, resampling : str = 'single', resampling_kwargs : dict = {}) -> tuple[pd.DataFrame, pd.DataFrame, lilio.Calendar]:
     """
     target region dictionary
     Loading ECAD data
     resampling determines the resampling strategy
     kwargs fed to the respective resampling function
     """
-    target = prep_ecad(target_region, target_var, minsamples).to_frame()
+    target = prep_ecad(target_region, target_var, minsamples, shift).to_frame()
     target.columns = pd.MultiIndex.from_tuples([(target_var,0,'ECAD')], names = tscolnames)
     df = get_monthly_data()
 

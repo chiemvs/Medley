@@ -58,9 +58,9 @@ pipeline_kwargs = dict(
     )
 
 if __name__ == '__main__':
-    X, y, cal = prep_and_resample(**prep_kwargs)
-    #y = prep_ecad(prep_kwargs['target_region'], 'SPI3').to_frame()
-    #X = get_monthly_data()
+    #X, y, cal = prep_and_resample(**prep_kwargs)
+    y = prep_ecad(prep_kwargs['target_region'], 'SPI3', shift = False).to_frame()
+    X = get_monthly_data()
 
     ## Extraction of selected predictors, from a good experiment
     #result, cv_scores = load_pred_results('deb4021d58')
@@ -68,17 +68,17 @@ if __name__ == '__main__':
     ##X = X.loc[:,list(prednames)]
     #X = X.loc[:,[p[0] for p in prednames]]
 
-    X, y = remove_bottleneck(X, y, **bottleneck_kwargs)
-    modelclass = return_estimator(estimator)
-    model = modelclass(**estimator_kwargs)
-    model.fit(X,y.squeeze())
-    yhat = model.predict(X)
+    #X, y = remove_bottleneck(X, y, **bottleneck_kwargs)
+    #modelclass = return_estimator(estimator)
+    #model = modelclass(**estimator_kwargs)
+    #model.fit(X,y.squeeze())
+    #yhat = model.predict(X)
 
-    expl = return_explainer(model)
-    attribution = expl.explain(X)
+    #expl = return_explainer(model)
+    #attribution = expl.explain(X)
 
-    cv_kwargs['time_dim'] = X.index  
-    cv = SpatiotemporalSplit(**cv_kwargs)
+    #cv_kwargs['time_dim'] = X.index  
+    #cv = SpatiotemporalSplit(**cv_kwargs)
 
     # At this point we should be able to anomalize (in CV mode)
     #a = Anomalizer()

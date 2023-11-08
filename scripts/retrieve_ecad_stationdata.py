@@ -32,7 +32,7 @@ for country_zip in tempdir.glob(f'ECA_blended_{var}_*.zip'):
 
 """
 Predefined indices
-monthly values
+monthly values (SPI includes the month itself, and previous months, depending on the aggregation)
 """
 
 rawdir = Path(os.path.expanduser('~/Medi/monthly/eca_preaggregated_raw'))
