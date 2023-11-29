@@ -28,18 +28,19 @@ datapath = Path('/scistor/ivm/jsn295/Medi/monthly/')
 experimentpath = Path('/scistor/ivm/jsn295/Medi/predselec/')
 
 experiment = dict( 
-    region_name = 'medeast',
+    region_name = 'medwest',
     prep_kwargs= dict(
         target_var = 'SPI3',
         minsamples = 10, # numer of stations
-        resampling = 'single', # whether multiple targets / samples are desired per anchor year
+        resampling = 'multi', # whether multiple targets / samples are desired per anchor year
+        shift = False, # 
         resampling_kwargs = dict(
             precursor_agg = 1, # Number of months
             n = 2, # number of lags
             separation = 0, #step per lag
             target_agg = 1, # ignored if resampling == 'single', as aggregation will be based on first/last, also questionable if useful with 3-month SPI
-            firstmonth = 1, # How to define the winter period (with lastmonth)
-            lastmonth = 6,
+            firstmonth = 12, # How to define the winter period (with lastmonth)
+            lastmonth = 3,
             ),
         ),
     bottleneck_kwargs = dict(
@@ -52,7 +53,7 @@ experiment = dict(
         ),
     #estimator = 'ridreg',
     #estimator_kwargs = dict(),
-    estimator = 'rfresreg',
+    estimator = 'rfreg',
     estimator_kwargs = dict(
         n_estimators = 1500,
         max_depth = 6,
@@ -67,8 +68,8 @@ experiment = dict(
     #    ),
     pipeline_kwargs = dict(),
     sequential_kwargs = dict(
-        k_features=25,
-        forward=True,
+        k_features=1,
+        forward=False,
         scoring='neg_mean_squared_error',
         n_jobs=n_jobs,
         ),
@@ -104,7 +105,7 @@ def main(region_name, prep_kwargs, bottleneck_kwargs, cv_kwargs, estimator, esti
     """
     Data loading and resampling wrapped in preparation function
     """
-    prep_kwargs.update({'target_region':regions[region_name]}})
+    prep_kwargs.update({'target_region':regions[region_name]})
     Xm, ym, cal = prep_and_resample(**prep_kwargs)
 
     # Years from which data is required, dropping bottleneck variables

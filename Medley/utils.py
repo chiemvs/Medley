@@ -5,6 +5,8 @@ import xarray as xr
 import pandas as pd
 
 from datetime import datetime, timedelta
+from typing import Union
+from scipy import stats
 
 # Domain splitting for u to capture subtropical jet and eddy-driven jet separately.
 udomains = {'med':(-8.5,42), # Portugal to eastern turkey
@@ -51,6 +53,97 @@ medeast = dict(include = {
 regions = {'west':west,'medwest':medwest,'centraleast':centraleast,'east':east,'medeast':medeast}
 
 tscolnames = ['name','subindex','product']
+
+def fit_gamma(rr : np.ndarray, minsamples: int = 20) -> tuple[float,float,float]:
+    """
+    Returns a fitted 3-parameter gamma distribution
+    initial guess for loc parameter is zero
+    Returns False when fitting fails or when too little samples
+    """
+    if (len(rr) >= minsamples):
+        try:
+            gamparams = stats.gamma.fit(rr, loc=0)
+        except stats._warnings_errors.FitError:
+            warnings.warn('fitting gamma failed')
+            gamparams = False
+    else:
+        warnings.warn('detected lower than minimum amount of samples')
+        gamparams = False
+    return gamparams
+
+
+def spi_from_monthly_rainfall(rr : Union[np.ndarray,pd.Series], minsamples: int = 20, gamparams: tuple = None) -> Union[np.ndarray,pd.Series]:
+    """
+    Should be monthly accumulation, normalization with respect to entire data
+    so make sure you supply only values for same-month-in-year
+    Stagge, J. H., Tallaksen, L. M., Gudmundsson, L., Van Loon, A. F., & Stahl, K. (2015). Candidate distributions for climatological drought indices (SPI and SPEI). International Journal of Climatology, 35(13), 4027-4040.
+    Returns NA for too little samples
+    Possible to supply pre-computed gamma parameters. (False if presupplied fit failed)
+    """
+    assert (not isinstance(rr, pd.DataFrame)), 'Only 1-D data should be supplied'
+    if isinstance(rr, pd.Series):
+        restore = pd.Series(np.nan, index = rr.index, name = 'SPI')
+        rr = rr.values
+    elif isinstance(rr, xr.DataArray):
+        assert rr.ndim == 1, 'Only 1-D xarray should be supplied'
+        restore = xr.DataArray(np.nan, coords = rr.coords, dims = rr.dims, name = 'SPI')
+        rr = rr.values
+    else:
+        restore = False
+    if gamparams is None:
+        gamparams = fit_gamma(rr, minsamples = minsamples) # attempt fit parameters of gamma distribution to SPI data, will become False if too little samples or unsuccesful
+    if gamparams:
+        rv = stats.gamma(*gamparams) # Continuous random variable class, can sample randomly from the gamma distribution we just fitted
+        # Account for zero values (cfr.Stagge et al. 2015))
+        indices_nonzero = np.nonzero(rr)[0]
+        nsamples_zero = len(rr) - np.count_nonzero(rr)
+        ratio_zeros = nsamples_zero / len(rr)
+
+        p_zero_mean = (nsamples_zero + 1) / (2 * (len(rr) + 1))
+        # Creating a series equal in length to the 1-month sums, which will receive the probabilities
+        prob_gamma = np.full_like(a = rr, fill_value = p_zero_mean)
+        # overwriting the p_zero for all non-zero months
+        prob_gamma[indices_nonzero] = ratio_zeros+((1-ratio_zeros)*rv.cdf(rr[indices_nonzero]))
+
+        # Step 3:
+        # Transform Gamma probabilities to standard normal probabilities (plus clipping deviations greater than 3 std)
+        z_std = stats.norm.ppf(prob_gamma)
+        z_std[z_std>3] = 3
+        z_std[z_std<-3] = -3
+    else:
+        warnings.warn('gamparams was False, filling with NA')
+        z_std = np.full_like(a = rr, fill_value = np.nan)
+    if isinstance(restore, (pd.Series,xr.DataArray)):
+        restore[:] = z_std
+        return restore
+    else:
+        return z_std
+
+def transform_to_spi(rr : Union[pd.Series,xr.DataArray], minsamples: int = 20, climate_period : slice = None):
+    """
+    Handles a single timeseries, removing na's.
+    Possible to harmonize the climate period
+    Might be handy for station data with different periods
+    applies the transformation per month
+    """
+    def per_month(rr, climate_period, minsamples):
+        spikwargs = dict(minsamples = minsamples)
+        if not (climate_period is None):
+            climdat = rr.loc[climate_period] 
+            spikwargs.update({'gamparams': fit_gamma(climdat.values, minsamples = minsamples)})
+        else:
+            spikwargs.update({'gamparams': None})
+        return spi_from_monthly_rainfall(rr = rr, **spikwargs) 
+
+    if isinstance(rr, xr.DataArray):
+        rr = rr.dropna(dim = 'time')
+        spi = rr.groupby(rr.time.dt.month).apply(per_month, climate_period = climate_period, minsamples = minsamples)
+    else:
+        rr = rr.dropna()
+        spi = rr.groupby(rr.index.month).apply(per_month, climate_period = climate_period, minsamples = minsamples)
+        spi.index = spi.index.droplevel(0)
+        spi = spi.sort_index()
+    return spi
 
 def data_for_pcolormesh(array, shading:str):
     """Xarray array to usuable things"""
