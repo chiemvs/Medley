@@ -72,7 +72,7 @@ def fit_gamma(rr : np.ndarray, minsamples: int = 20) -> tuple[float,float,float]
     return gamparams
 
 
-def spi_from_monthly_rainfall(rr : Union[np.ndarray,pd.Series], minsamples: int = 20, gamparams: tuple = None) -> Union[np.ndarray,pd.Series]:
+def spi_from_monthly_rainfall(rr : Union[np.ndarray,xr.DataArray,pd.Series], minsamples: int = 20, gamparams: tuple = None) -> Union[np.ndarray,pd.Series]:
     """
     Should be monthly accumulation, normalization with respect to entire data
     so make sure you supply only values for same-month-in-year
@@ -126,18 +126,24 @@ def transform_to_spi(rr : Union[pd.Series,xr.DataArray], minsamples: int = 20, c
     Might be handy for station data with different periods
     applies the transformation per month
     """
-    def per_month(rr, climate_period, minsamples):
+    def per_month(rr, climate_period, minsamples, stack: bool = False):
         spikwargs = dict(minsamples = minsamples)
         if not (climate_period is None):
+            assert not stack, 'members in combination with climate period is not supported'
             climdat = rr.loc[climate_period] 
             spikwargs.update({'gamparams': fit_gamma(climdat.values, minsamples = minsamples)})
         else:
             spikwargs.update({'gamparams': None})
-        return spi_from_monthly_rainfall(rr = rr, **spikwargs) 
+        if stack:
+            stackdims = [d for d in ['amoc','member','time'] if d in rr.dims]
+            result = spi_from_monthly_rainfall(rr = rr.stack({'stacked':stackdims}), **spikwargs) 
+            return result.unstack('stacked')
+        else:
+            return spi_from_monthly_rainfall(rr = rr, **spikwargs) 
 
     if isinstance(rr, xr.DataArray):
         rr = rr.dropna(dim = 'time')
-        spi = rr.groupby(rr.time.dt.month).apply(per_month, climate_period = climate_period, minsamples = minsamples)
+        spi = rr.groupby(rr.time.dt.month).apply(per_month, climate_period = climate_period, minsamples = minsamples, stack = 'member' in rr.dims)
     else:
         rr = rr.dropna()
         spi = rr.groupby(rr.index.month).apply(per_month, climate_period = climate_period, minsamples = minsamples)
