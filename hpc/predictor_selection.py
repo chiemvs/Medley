@@ -30,7 +30,7 @@ experimentpath = Path('/scistor/ivm/jsn295/Medi/predselec/')
 experiment = dict( 
     region_name = 'medwest',
     prep_kwargs= dict(
-        target_var = 'SPI3',
+        target_var = 'SPI1',
         minsamples = 10, # numer of stations
         resampling = 'multi', # whether multiple targets / samples are desired per anchor year
         shift = False, # 
@@ -39,7 +39,7 @@ experiment = dict(
             n = 2, # number of lags
             separation = 0, #step per lag
             target_agg = 1, # ignored if resampling == 'single', as aggregation will be based on first/last, also questionable if useful with 3-month SPI
-            firstmonth = 12, # How to define the winter period (with lastmonth)
+            firstmonth = 1, # How to define the winter period (with lastmonth)
             lastmonth = 3,
             ),
         ),
@@ -56,11 +56,11 @@ experiment = dict(
     estimator = 'rfreg',
     estimator_kwargs = dict(
         n_estimators = 1500,
-        max_depth = 6,
+        max_depth = 5,
     #    #learning_rate = 0.01,
     #    #n_jobs=n_jobs,
-        min_samples_split=0.01, # With max about 200 samples, anything below 0.01 does not make sense
-        max_features = 0.3,
+        min_samples_split=0.09, # With max about 200 samples, anything below 0.01 does not make sense
+        max_features = 0.7,
         ),
     #pipeline_kwargs = dict( # Further processing after the
     #    anom = False,
@@ -68,9 +68,10 @@ experiment = dict(
     #    ),
     pipeline_kwargs = dict(),
     sequential_kwargs = dict(
-        k_features=1,
+        k_features=2,
         forward=False,
-        scoring='neg_mean_squared_error',
+        floating=True,
+        scoring='r2',
         n_jobs=n_jobs,
         ),
     )

@@ -23,16 +23,16 @@ warnings.simplefilter('ignore',category=UserWarning)
 
 prep_kwargs= dict(
     target_region = regions['medwest'],
-    target_var = 'SPI3',
+    target_var = 'SPI1',
     minsamples = 10, # numer of stations
     resampling = 'multi', # whether multiple targets / samples are desired per anchor year
     shift = False,
     resampling_kwargs = dict(
-        precursor_agg = 2, # Number of months
+        precursor_agg = 1, # Number of months
         n = 2, # number of lags
-        separation = 1, #step per lag
+        separation = 0, #step per lag
         target_agg = 1, # ignored if resampling == 'single', as aggregation will be based on first/last
-        firstmonth = 12, # How to define the winter period (with lastmonth)
+        firstmonth = 1, # How to define the winter period (with lastmonth)
         lastmonth = 3,
         ),
     )
@@ -60,12 +60,12 @@ pipeline_kwargs = dict(
 
 if __name__ == '__main__':
     X, y, cal = prep_and_resample(**prep_kwargs)
-    #y = prep_ecad(prep_kwargs['target_region'], 'SPI3', shift = False).to_frame()
+    #y = prep_ecad(prep_kwargs['target_region'], 'SPI1', shift = False).to_frame()
     #X = get_monthly_data()
 
     ## Extraction of selected predictors, from a good experiment
     #result, cv_scores = load_pred_results('f20fdf7d0d')
-    result, cv_scores = load_pred_results('5f53f2f833')
+    result, cv_scores = load_pred_results('5f53f2f833', subdir = 'pre0512_config')
     prednames = result.loc[10,'feature_names']
     X = X.loc[:,list(prednames)]
     #X = X.loc[:,[p[0] for p in prednames]]

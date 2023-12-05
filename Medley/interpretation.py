@@ -91,11 +91,15 @@ def return_unique_values(key: str, reverse: bool = False) -> pd.Series:
         return returnseries 
 
 
-def load_pred_results(expid: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def load_pred_results(expid: str, subdir: str = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     predictor selection results as saved
+    possible to supply old subdir
     """
-    resultspath = predselpath / f'{expid}_results.csv'
+    if subdir is None:
+        resultspath = predselpath / f'{expid}_results.csv'
+    else:
+        resultspath = predselpath / subdir / f'{expid}_results.csv'
     df = pd.read_csv(resultspath, sep = ';', index_col = 0)
     df.index.name = 'npredictors'
     objecttypes = df.dtypes.loc[(df.dtypes == object).values]
