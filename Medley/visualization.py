@@ -13,6 +13,15 @@ except ImportError:
 from typing import Union
 from pathlib import Path
 
+def data_for_pcolormesh(array, shading:str):
+    """Xarray array to usuable things"""
+    lats = array.latitude.values # Interpreted as northwest corners (90 is in there)
+    lons = array.longitude.values # Interpreted as northwest corners (-180 is in there, 180 not)
+    if shading == 'flat':
+        lats = np.concatenate([lats[[0]] - np.diff(lats)[0], lats], axis = 0) # Adding the sourthern edge 
+        lons = np.concatenate([lons, lons[[-1]] + np.diff(lons)[0]], axis = 0)# Adding the eastern edge (only for flat shating)
+    return lons, lats, array.values.squeeze()
+
 def plot_stations(stat: pd.Series, statloc: pd.DataFrame, fig = None, ax = None, cbar = True, scatter_kwargs = {}, cbar_kwargs = {'shrink':0.8}):
     try:
         s = scatter_kwargs.pop('s')
