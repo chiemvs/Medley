@@ -23,8 +23,12 @@ testts = testdf[21]
 
 #spits = transform_to_spi(testts, climate_period = slice('1990-01-01','2000-01-01'))
 #spits = transform_to_spi(testts)
-spi = testdf.apply(transform_to_spi, axis = 0)
+#spi = testdf.apply(transform_to_spi, axis = 0)
+#spi.to_hdf(datapath / 'eca_preaggregated_SPI1.h5', key = 'SPI1', mode = 'w')
 
-spi.to_hdf(datapath / 'eca_preaggregated_SPI1.h5', key = 'SPI1', mode = 'w')
-#os.system(f'cp {datapath / "eca_preaggregated_SPI3_stations.h5"} {datapath / "eca_preaggregated_SPI1_stations.h5"}')
+#spi = pd.read_hdf(datapath / 'eca_preaggregated_SPI1.h5', key = 'SPI1')
+
+#old_locs = pd.read_hdf(f'{datapath / "eca_preaggregated_SPI3_stations.h5"}')
+#remaining_locs = old_locs.loc[spi.columns,:]
+#remaining_locs.to_hdf(datapath / "eca_preaggregated_SPI1_stations.h5", mode = 'w', key = 'SPI1')
 
