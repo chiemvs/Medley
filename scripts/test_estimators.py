@@ -37,32 +37,32 @@ prep_kwargs= dict(
         ),
     )
 predictor_kwargs = dict( # Fixed arguments
-    npreds = 15,
-    expid = 'fa83d256b8', #'5f53f2f833', # 
+    npreds = 7,
+    expid = 'dd0d579f41', #'fa83d256b8', #'5f53f2f833', # 
     subdir = None, #'pre0512_config', #
     )
 bottleneck_kwargs = dict(
-    startyear = 1950, # To remove bottleneck data
+    startyear = 1980, # To remove bottleneck data
     endyear = 2023,
     fraction_valid = 0.8, # Fraction non-nan required in desired window
     )
 cv_kwargs = dict(
     n_temporal=5,
     )
-estimator = 'xgbreg'
-estimator_kwargs = dict(
-    n_estimators = 345,
-    learning_rate= 0.09,
-    max_depth = 3,
-    n_jobs = 20,
-    )
-#estimator = 'rfreg'
+#estimator = 'xgbreg'
 #estimator_kwargs = dict(
-#    n_estimators = 1500,
-#    max_depth = 11,
-#    min_samples_split=0.04, # With max about 200 samples, anything below 0.01 does not make sense
-#    max_features = 1.0,
+#    n_estimators = 345,
+#    learning_rate= 0.09,
+#    max_depth = 3,
+#    n_jobs = 20,
 #    )
+estimator = 'rfreg'
+estimator_kwargs = dict(
+    n_estimators = 1500,
+    max_depth = 11,
+    min_samples_split=0.04, # With max about 200 samples, anything below 0.01 does not make sense
+    max_features = 1.0,
+    )
 pipeline_kwargs = dict(
     anom = False,
     scale = False,
