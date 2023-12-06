@@ -36,6 +36,11 @@ prep_kwargs= dict(
         lastmonth = 3,
         ),
     )
+predictor_kwargs = dict( # Fixed arguments
+    npreds = 15,
+    expid = 'fa83d256b8', #'5f53f2f833', # 
+    subdir = None, #'pre0512_config', #
+    )
 bottleneck_kwargs = dict(
     startyear = 1950, # To remove bottleneck data
     endyear = 2023,
@@ -44,15 +49,20 @@ bottleneck_kwargs = dict(
 cv_kwargs = dict(
     n_temporal=5,
     )
-#estimator = 'ridreg'
-#estimator_kwargs = dict()
-estimator = 'rfreg'
+estimator = 'xgbreg'
 estimator_kwargs = dict(
-    n_estimators = 1500,
-    max_depth = 6,
-    min_samples_split=0.01, # With max about 200 samples, anything below 0.01 does not make sense
-    max_features = 0.3,
+    n_estimators = 345,
+    learning_rate= 0.09,
+    max_depth = 3,
+    n_jobs = 20,
     )
+#estimator = 'rfreg'
+#estimator_kwargs = dict(
+#    n_estimators = 1500,
+#    max_depth = 11,
+#    min_samples_split=0.04, # With max about 200 samples, anything below 0.01 does not make sense
+#    max_features = 1.0,
+#    )
 pipeline_kwargs = dict(
     anom = False,
     scale = False,
@@ -64,11 +74,11 @@ if __name__ == '__main__':
     #X = get_monthly_data()
 
     ## Extraction of selected predictors, from a good experiment
-    #result, cv_scores = load_pred_results('f20fdf7d0d')
-    result, cv_scores = load_pred_results('5f53f2f833', subdir = 'pre0512_config')
-    prednames = result.loc[10,'feature_names']
-    X = X.loc[:,list(prednames)]
-    #X = X.loc[:,[p[0] for p in prednames]]
+    if predictor_kwargs:
+        npreds = predictor_kwargs.pop('npreds')
+        result, cv_scores = load_pred_results(**predictor_kwargs)
+        prednames = result.loc[npreds,'feature_names']
+        X = X.loc[:,list(prednames)]
 
     X, y = remove_bottleneck(X, y, **bottleneck_kwargs)
     modelclass = return_estimator(estimator)
@@ -93,5 +103,6 @@ if __name__ == '__main__':
     print(r2_score(y,yhats2))
     #scores = cross_val_score(model, X = X, y = y.squeeze(), cv = cv, scoring = 'neg_mean_absolute_error')
     scores = cross_validate(model, X = X, y = y.squeeze(), cv = cv, scoring = ['r2','neg_mean_squared_error'])
+    print(scores['test_neg_mean_squared_error'].mean())
     #scores2 = cross_validate(p, X = X, y = y.squeeze(), cv = cv, scoring = ['r2','neg_mean_absolute_error'])
 

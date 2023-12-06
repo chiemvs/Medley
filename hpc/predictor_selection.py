@@ -51,17 +51,22 @@ experiment = dict(
     cv_kwargs = dict(
         n_temporal=5,
         ),
+    estimator = 'xgbreg',
+    estimator_kwargs = dict(
+        n_estimators = 345,
+        learning_rate= 0.09,
+        max_depth = 3,
+        n_jobs = 1,
+        ),
     #estimator = 'ridreg',
     #estimator_kwargs = dict(),
-    estimator = 'rfreg',
-    estimator_kwargs = dict(
-        n_estimators = 1500,
-        max_depth = 5,
-    #    #learning_rate = 0.01,
-    #    #n_jobs=n_jobs,
-        min_samples_split=0.09, # With max about 200 samples, anything below 0.01 does not make sense
-        max_features = 0.7,
-        ),
+    #estimator = 'rfreg',
+    #estimator_kwargs = dict(
+    #    n_estimators = 1500,
+    #    max_depth = 5,
+    #    min_samples_split=0.09, # With max about 200 samples, anything below 0.01 does not make sense
+    #    max_features = 0.7,
+    #    ),
     #pipeline_kwargs = dict( # Further processing after the
     #    anom = False,
     #    scale = False,
@@ -71,7 +76,7 @@ experiment = dict(
         k_features=2,
         forward=False,
         floating=True,
-        scoring='r2',
+        scoring='neg_mean_squared_error',
         n_jobs=n_jobs,
         ),
     )

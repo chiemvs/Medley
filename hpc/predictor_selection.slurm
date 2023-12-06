@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-#SBATCH --job-name="westr2"
+#SBATCH --job-name="westxgb"
 #SBATCH --cpus-per-task=16
 #SBATCH --time=48:00:00
 #SBATCH --mem=15gb

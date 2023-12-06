@@ -34,7 +34,7 @@ experimentpath = Path('/scistor/ivm/jsn295/Medi/hyperparams/')
 experiment = dict( 
     region_name = 'medwest',
     prep_kwargs= dict(
-        target_var = 'SPI3',
+        target_var = 'SPI1',
         minsamples = 10, # numer of stations
         resampling = 'multi', # whether multiple targets / samples are desired per anchor year
         shift = False, # 
@@ -43,14 +43,14 @@ experiment = dict(
             n = 2, # number of lags
             separation = 0, #step per lag
             target_agg = 1, # ignored if resampling == 'single', as aggregation will be based on first/last, also questionable if useful with 3-month SPI
-            firstmonth = 11, # How to define the winter period (with lastmonth)
+            firstmonth = 1, # How to define the winter period (with lastmonth)
             lastmonth = 3,
             ),
         ),
     predictor_kwargs = dict( # Fixed arguments
-        npreds = 10,
-        expid = '5f53f2f833',
-        subdir = 'pre0512_config',
+        npreds = 20,
+        expid = 'fa83d256b8', #'5f53f2f833', # 
+        subdir = None, #'pre0512_config', #
         ),
     #predictor_kwargs = dict(),
     bottleneck_kwargs = dict(
@@ -61,24 +61,33 @@ experiment = dict(
     cv_kwargs = dict(
         n_temporal=5,
         ),
-    estimator = 'rfreg',
+    #estimator = 'rfreg',
+    #estimator_kwargs = dict( # Fixed arguments
+    #    n_estimators = 1500,
+    #    ),
+    estimator = 'xgbreg',
     estimator_kwargs = dict( # Fixed arguments
-        n_estimators = 1500,
+        n_jobs=1,
         ),
     #pipeline_kwargs = dict( # Further processing after the
     #    anom = False,
     #    scale = False,
     #    ),
     pipeline_kwargs = dict(),
-    studyspace = dict( # Tuple with upper and lower bounds of parameters, or lists of options
-        min_samples_split= (0.01,0.1),
-        max_features= (0.1,1.0),
-        max_depth=[3,5,8,11],
+    #studyspace = dict( # Tuple with upper and lower bounds of parameters, or lists of options
+    #    min_samples_split= ((0.01,0.1),False),
+    #    max_features= ((0.1,1.0),False),
+    #    max_depth=[3,5,8,11],
+    #    ),
+    studyspace = dict( # Tuple with upper and lower bounds of parameters plus whether logarithmic, or lists of options
+        n_estimators = ((50,500),False),
+        learning_rate= ((0.001,0.1),True),
+        max_depth=((1,10),False),
         ),
     studykwargs = dict(
         score='neg_mean_squared_error',
         direction='maximize',
-        n_trials=10,
+        n_trials=200,
         n_jobs=n_jobs,
         ),
     )
@@ -91,12 +100,12 @@ def trial_objective(trial, X, y, cv, estimator: str, estimator_kwargs: dict, stu
     """
     hyperparams = deepcopy(estimator_kwargs) 
     for paramname, space in studyspace.items():
-        if isinstance(space, tuple): # lower, upper bounds
-            lower, upper = space 
+        if isinstance(space, tuple): # lower, upper bounds, and whether logarithmic
+            (lower, upper), log = space 
             if isinstance(lower,int):
-                hyperparams[paramname] = trial.suggest_int(paramname, lower, upper, log=False)
+                hyperparams[paramname] = trial.suggest_int(paramname, lower, upper, log=log)
             else:
-                hyperparams[paramname] = trial.suggest_float(paramname, lower, upper, log=False)
+                hyperparams[paramname] = trial.suggest_float(paramname, lower, upper, log=log)
         elif isinstance(space,list):
             hyperparams[paramname] = trial.suggest_categorical(paramname, space)
     print(hyperparams)
