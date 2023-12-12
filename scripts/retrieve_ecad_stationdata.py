@@ -2,6 +2,7 @@ import sys
 import os
 import zarr
 import fsspec
+import warnings
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -36,8 +37,9 @@ monthly values (SPI includes the month itself, and previous months, depending on
 """
 
 rawdir = Path(os.path.expanduser('~/Medi/monthly/eca_preaggregated_raw'))
-variables = {'CDD':'days','PET':'mm','SPI3':'','RR':'mm'}
+#variables = {'CDD':'days','PET':'mm','SPI3':'','RR':'mm'}
 #variables = {'RR':'mm'}
+variables = {'SPI1_Gerard':''}
 
 countries = ['SPAIN', 'PORTUGAL','FRANCE','ITALY','GREECE','ISRAEL','SLOVENIA','CROATIA','CYPRUS','MONTENEGRO','ALBANIA','NORTH MACEDONIA','BOSNIA AND HERZEGOVINA','TUNISIA']#,'TÃ\x9cRKIYE']
 # Turkey is weirdly encoded
@@ -67,14 +69,26 @@ def read_one_file(path):
     test = process_ascii(year.astype(np.float32), jan_to_dec.values.flatten(), miss_val = miss)
     return test / 100
 
+def read_one_spi1_file(path):
+    temp = pd.read_csv(path, header = None, names = ['ignore','STAID','month','year','SPI1','filter'])
+    temp.loc[:,'month'] = temp.loc[:,'month'] - 6 # 0=jaarlijks gemiddelde, 1,2 winter- en zomerhalfjaar, 3,4,5,6 DJF, MAM, JJA, SON, 7=januari, 8=februari etc
+    temp = temp.loc[temp.loc[:,'month'] > 0,:]
+    decimal_year = temp.loc[:,'year'].astype(np.float32) + (temp.loc[:,'month'] - 1) / 12
+    test = process_ascii(decimal_year.values, temp['SPI1'].values.flatten(), miss_val = miss)
+    return test / 100
+
+
 for var in variables.keys():
     zipname = f'ECA_index{var}.zip'
     zippath = rawdir / zipname
     tempvardir = rawdir / f'temp_{var}'
     if (not zippath.exists()) or overwrite:
-        url = f'https://knmi-ecad-assets-prd.s3.amazonaws.com/download/millennium/data/{zipname}'
-        os.system(f'curl {url} -o {zippath}')
-        os.system(f'unzip {zippath} stations.txt -d {tempvardir}')
+        if var == 'SPI1_Gerard':
+            warnings.warn('SPI1 cannot be downloaded, as was manually prepared by Gerard. Continuing with existing data')
+        else:
+            url = f'https://knmi-ecad-assets-prd.s3.amazonaws.com/download/millennium/data/{zipname}'
+            os.system(f'curl {url} -o {zippath}')
+            os.system(f'unzip {zippath} stations.txt -d {tempvardir}')
         stations = pd.read_fwf(f'{tempvardir}/stations.txt',
                 colspecs = [(0,5),(6,46),(47,87),(88,97),(98,108),(109,114)], skiprows = 1,header = 11,encoding = 'latin')
         subset = stations.loc[stations['COUNTRYNAME'].apply(lambda n: (n in countries) or n.endswith('KIYE')).values,:]
@@ -85,10 +99,14 @@ for var in variables.keys():
         subset.loc[subset['COUNTRYNAME'].apply(lambda n: n.endswith('KIYE')).values,'COUNTRYNAME'] = 'TURKEY'
         subset = subset.set_index('STAID')
 
-        to_extract = {sid:f'index{var}' + f'000000{sid}'[-6:] + '.txt' for sid in subset.index}
-
-        os.system(f'unzip {zippath} {" ".join(to_extract.values())} -d {tempvardir}')
-        data = {sid: read_one_file(tempvardir / filename) for sid, filename in to_extract.items()}
+        if var == 'SPI1_Gerard':
+            potential_stations = {sid:tempvardir/ f'index_SPI-1_{sid}.txt' for sid in subset.index}
+            data = {sid: read_one_spi1_file(path) for sid, path in potential_stations.items() if path.exists()}
+            subset = subset.loc[data.keys(),:] # Not everything is prepared by Gerard
+        else:
+            to_extract = {sid:f'index{var}' + f'000000{sid}'[-6:] + '.txt' for sid in subset.index}
+            os.system(f'unzip {zippath} {" ".join(to_extract.values())} -d {tempvardir}')
+            data = {sid: read_one_file(tempvardir / filename) for sid, filename in to_extract.items()}
         dataframe = pd.concat(data, axis = 1, join = 'outer')
         dataframe.columns = dataframe.columns.droplevel(-1).set_names('STAID')
 
