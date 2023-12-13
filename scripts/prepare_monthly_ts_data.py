@@ -33,9 +33,9 @@ def u_series(name, lonmin, lonmax, level = 250) -> pd.DataFrame:
     Extracting latitude of maximum, and strengths at
     40N and 55N
     """
-    upath = datapath / f'monthly_zonalmean_u{level}_NH_{lonmin}E_{lonmax}E.nc'
+    upath = datapath / 'era5' / f'monthly_zonalmean_u{level}_NH_{lonmin}E_{lonmax}E.nc'
     uda = xr.open_dataarray(upath)
-    latpath = datapath / f'monthly_zonallatmax_u{level}_NH_{lonmin}E_{lonmax}E.nc'
+    latpath = datapath / 'era5' / f'monthly_zonallatmax_u{level}_NH_{lonmin}E_{lonmax}E.nc'
     latda = xr.open_dataarray(latpath)
     collection = latda.to_dataframe()
     collection.columns = pd.MultiIndex.from_tuples([(f'{name}_u{level}_latmax',0,'era5')], names = tscolnames)
@@ -57,7 +57,7 @@ def vortex():
     """
     Definition of Zappa and Shepherd 2017
     """
-    vortexpath = datapath / 'monthly_u20_era5.zarr'
+    vortexpath = datapath / 'era5' / 'monthly_u20_era5.zarr'
     uwinds = xr.open_zarr(vortexpath)
     uwinds = uwinds.sel(latitude = slice(80,70)).mean(['longitude','latitude'])
     ts = uwinds.to_dataframe() # invokes the compute

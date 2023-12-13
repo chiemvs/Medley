@@ -12,13 +12,15 @@ from scipy import stats
 from xeofs.models import EOF
 
 sys.path.append(os.path.expanduser('~/Documents/Medley/'))
-from Medley.utils import chunk_func, spi_from_monthly_rainfall, fit_gamma, transform_to_spi, regions
+from Medley.utils import transform_to_spi, regions, udomains
 from Medley.preprocessing import monthly_resample_func, makemask
 from Medley.dataloading import datapath
 
 def process_one(filepath, ncvarname: str, nyearshift: int = 0):
     """
-    nyearshift for concatenation
+    Dropping first year for independence of the atmospheric runs
+    nyearshift for concatenation, monthly timeaxis will be left-stamped
+    making sure longitude is increasing and -180 to 180
     """
     # Drop first year
     da = xr.open_dataset(filepath)[ncvarname].isel(time = slice(12,None))
@@ -34,6 +36,8 @@ def process_one(filepath, ncvarname: str, nyearshift: int = 0):
 
 ecpath = Path('/scistor/ivm/data_catalogue/climate_models/amip_style/ec_earth/')
 amoc_strs = {'17sv': 99,'14sv': 87,'07sv':-30} # Shifts to harmonize the time axes to 1950-1959
+
+outpath = datapath / 'ecearth'
 
 """
 Making ec-earth landsea mask
@@ -76,7 +80,6 @@ And also multiple experiments (so they are on the same SPI scale and we can see 
 #for latlon in total.latlon:
 #    spi.loc[:,:,:,latlon] = transform_to_spi(total.loc[:,:,:,latlon])
 #
-#outpath = datapath / 'ecearth'
 #spi.unstack('latlon').sortby('lat').sortby('lon').to_netcdf(outpath / 'spi1_medwest.nc')
 #spi.mean('latlon').to_netcdf(outpath / 'spi1_medwest_mean.nc')
 
@@ -85,7 +88,7 @@ EC earth SLP and Z500, concatenate multiple members
 but not multiple experiments? 
 """ 
 
-var = 'psl' # 'psl' or 'zg500'
+var = 'zg500' # 'psl' or 'zg500'
 index = 'ao'
 ncvarname = {'psl':'psl','zg500':'zg'}[var]
 
@@ -111,35 +114,107 @@ anom = total.groupby(total.time.dt.month).apply(lambda a: a - a.mean(['time','me
 #anom2 = total.groupby(total.time.dt.month) - monmean
 superstack = anom.stack({'stackdim':['amoc','member','time']}) # season based subsetting?
 
-model_lat = EOF(n_modes=2, standardize=False, use_coslat=True)
-model_lat.fit(superstack, "stackdim")
+def reduce_to_two_pcs(array: xr.DataArray):
+    """
+    Stacked 2D array such that the stackdim contains samples
+    """
+    model_lat = EOF(n_modes=2, standardize=False, use_coslat=True)
+    model_lat.fit(array, "stackdim")
+    
+    loading_patterns = model_lat.components()
+    loading_patterns.attrs.pop('solver_kwargs') 
+    scores = model_lat.scores().unstack('stackdim')
+    scores.attrs.pop('solver_kwargs') 
+    if loading_patterns.sel(mode = 1).mean('lon').sel(lat = slice(35,65)).diff('lat').mean().values > 0: # Make sure that we have positive AO and positive NAO meaning that pressure closer to pole is less than normal
+        loading_patterns.loc[1] = -loading_patterns.loc[1] 
+        scores.loc[1] = -scores.loc[1] 
+    return loading_patterns, scores, model_lat
 
-outpath = datapath / 'ecearth'
-
-loading_patterns = model_lat.components()
-loading_patterns.attrs.pop('solver_kwargs') 
-scores = model_lat.scores().unstack('stackdim')
-scores.attrs.pop('solver_kwargs') 
-if loading_patterns.sel(mode = 1).mean('lon').sel(lat = slice(35,65)).diff('lat').mean().values > 0: # Make sure that we have positive AO and positive NAO meaning that pressure closer to pole is less than normal
-    loading_patterns.loc[1] = -loading_patterns.loc[1] 
-    scores.loc[1] = -scores.loc[1] 
+"""
+Version with all data at once
+"""
+#loading_patterns, scores, _ = reduce_to_two_pcs(superstack)
 #loading_patterns.to_netcdf(outpath / f'{index}_{var}_components.nc')
 #scores.to_netcdf(outpath / f'{index}_{var}_timeseries.nc')
+
+"""
+Version whereby current climate EOF is projected on the reduced strength data
+"""
+if (index == 'ao') and (var == 'zg500'): 
+    stack_17 = anom.sel(amoc = '17sv').stack({'stackdim':['member','time']})
+    stack_14 = anom.sel(amoc = '14sv').stack({'stackdim':['member','time']})
+    stack_07 = anom.sel(amoc = '07sv').stack({'stackdim':['member','time']})
+    loading_patterns_17, scores_17, model_17 = reduce_to_two_pcs(stack_17)
+    loading_patterns_17.drop('amoc').to_netcdf(outpath / f'{index}_{var}_17sv_components.nc')
+    scores_14 = model_17.transform(stack_14).unstack('stackdim')
+    scores_07 = model_17.transform(stack_07).unstack('stackdim')
+    scores = xr.concat([scores_17,scores_14,scores_07], dim = pd.Index(['17sv','14sv','7sv'], name = 'amoc'))
+    scores.to_netcdf(outpath / f'{index}_{var}_17sv_timeseries.nc')
+
 
 """
 Gibraltar - Stykkisholmur definition
 Jones, P.D., Jónsson, T. and Wheeler, D., 1997: Extension to the North Atlantic Oscillation using early instrumental pressure observations from Gibraltar and South-West Iceland. Int. J. Climatol. 17, 1433-1450
 """
-if (index == 'nao') and (var == 'psl'):
-    iceland = anom.sel(lat = 65,lon = 22.8, method = 'nearest')
-    gibraltar = anom.sel(lat =36.1106, lon = 5.3466, method = 'nearest')
-    station_based = gibraltar - iceland 
-    station_based.to_netcdf(outpath / f'{index}_{var}_station_timeseries.nc')
+#if (index == 'nao') and (var == 'psl'):
+#    iceland = anom.sel(lat = 65,lon = 22.8, method = 'nearest')
+#    gibraltar = anom.sel(lat =36.1106, lon = 5.3466, method = 'nearest')
+#    station_based = gibraltar - iceland 
+#    station_based.to_netcdf(outpath / f'{index}_{var}_station_timeseries.nc')
 
 
 """
-EC earth 250 winds, concatenate multiple members
-no need for multiple experiments? 
+EC earth 250 zonal (u) winds
+zonal mean of maximal latitude, and speed of zonal mean at multiple latitudes
+(latitudes closest to 20,30,40,50,60 N.)
+computed for two domains: mediterranean and atlantic
 """ 
+#
+#for lonmin, lonmax in udomains.values():
+#    lonslice = slice(lonmin,lonmax,None)
+#    latslice = slice(0, None, None)  # stored with Decreasing latitude
+#    arrs = []
+#    for amoc_str, shift in amoc_strs.items():
+#        files = np.sort(list(ecpath.glob(f'ua250_Amon*_{amoc_str}_*')))
+#        subarrs = []
+#        for i, filepath in enumerate(files):
+#            da, axis = process_one(filepath, ncvarname = 'ua', nyearshift = shift)
+#            da = da.sel({'lat':latslice,'lon':lonslice})
+#            da = da.squeeze('plev').drop('plev')
+#            da = da.expand_dims({'amoc':[amoc_str],'member':[i]})
+#            subarrs.append(da)
+#        arrs.append(xr.concat(subarrs, 'member'))
+#    
+#    total = xr.concat(arrs, 'amoc') 
+#
+#    # To timeseries
+#    zonal_u_mean = total.mean('lon').sel(lat=list(range(20,70,10)),method = 'nearest')
+#    zonal_u_mean.attrs = da.attrs
+#    zonal_lat_mean = total.idxmax('lat').mean('lon') # Order presented by Albert Osso
+#    zonal_lat_mean.attrs.update({'standard_name':'zonalmean_latmax','long_name':'latitude_of_maximum_per_longitude_then_zonal_mean'})
+#    zonal_u_mean.to_netcdf( outpath / f'monthly_zonalmean_u250_NH_{lonmin}E_{lonmax}E.nc')
+#    zonal_lat_mean.to_netcdf( outpath / f'monthly_zonallatmax_u250_NH_{lonmin}E_{lonmax}E.nc')
+
+"""
+EC earth 20 Hpa winds
+""" 
+#arrs = []
+#for amoc_str, shift in amoc_strs.items():
+#    files = np.sort(list(ecpath.glob(f'ua20_Amon*_{amoc_str}_*')))
+#    subarrs = []
+#    for i, filepath in enumerate(files):
+#        da, axis = process_one(filepath, ncvarname = 'ua', nyearshift = shift)
+#        da = da.sel({'lat':slice(70,80)})
+#        da = da.squeeze('plev').drop('plev')
+#        da = da.expand_dims({'amoc':[amoc_str],'member':[i]})
+#        subarrs.append(da)
+#    arrs.append(xr.concat(subarrs, 'member'))
+#
+#total = xr.concat(arrs, 'amoc') 
+#
+## To timeseries
+#vortex = total.mean(['lat','lon'])
+#vortex.attrs = da.attrs
+#vortex.to_netcdf( outpath / f'monthly_zonalmean_u20_NH_70N_80N.nc')
 
 

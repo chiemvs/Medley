@@ -7,7 +7,7 @@ from pathlib import Path
 
 store = 'reanalysis-era5-pressure-levels-monthly-means'
 tempdir = Path('/scistor/ivm/jsn295/temp/')
-finalpath = Path('/scistor/ivm/jsn295/Medi/monthly/monthly_u20_era5.zarr')
+finalpath = Path('/scistor/ivm/jsn295/Medi/monthly/era5/monthly_u20_era5.zarr')
 
 def request_one_year(year: int):
     request = {'format':'netcdf',

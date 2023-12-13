@@ -53,6 +53,7 @@ def zonal_u_era5(level = 250, lonmin: float = None, lonmax: float = None, latmin
 
 if __name__ == '__main__':
     level = 250
+    datapath = datapath / 'era5'
     for lonmin, lonmax in udomains.values():
         zon_u, zon_lat = zonal_u_era5(level = level, lonmin = lonmin, lonmax = lonmax, latmin = 0, latmax = None)
         zon_u.to_netcdf( datapath / f'monthly_zonalmean_u{level}_NH_{lonmin}E_{lonmax}E.nc')
