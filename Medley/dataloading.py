@@ -9,7 +9,7 @@ import xarray as xr
 from typing import Union
 from pathlib import Path
 
-from .utils import tscolnames
+from .utils import tscolnames, udomains
 from .preprocessing import makemask, average_within_mask, single_target_lagged_resample, multi_target_lagged_resample 
 
 datapath = Path('/scistor/ivm/jsn295/Medi/monthly/')
@@ -61,3 +61,53 @@ def prep_and_resample(target_region: dict, target_var: str = 'RR', minsamples: i
     else:
         raise ValueError('invalid resampling instruction given, should be one of "multi" or "single"')
     return Xm, ym, cm
+
+def load_ecearth_var(name: str, subindex: int, product: str, filename: str, fake_time_axis: bool = True) -> pd.DataFrame:
+    """
+    load of a single ec-earth variable
+    transforming the array to usable dataframe 
+    with same time axis, and also indexed by amoc strength
+    """
+    path = datapath / 'ecearth' / filename
+    da = xr.open_dataarray(path)
+    if name.endswith('u250'):
+        da = da.sel(lat=subindex,method = 'nearest')
+    if 'mode' in da.dims: # Is the case for NAO and AO
+        da = da.sel(mode = 1)
+    df = da.stack({'mt':['member','time']}).T.to_pandas()
+    # Resetting time axes here
+    if fake_time_axis:
+        newindex = df.index.to_frame()
+        members = df.index.get_level_values('member').unique()
+        nyears = 11 # per member timeseries, 10 plus 1 for the gap
+        for m in members:
+            newindex.loc[(m,slice(None)),'time'] = pd.date_range(f'{1700+m*(nyears)}-01-01',f'{1709+m*(nyears)}-12-31', freq = 'MS')
+        df.index = pd.MultiIndex.from_frame(newindex)
+    return df
+
+def prepare_ecearth_set(fake_time_axis: bool = True) -> pd.DataFrame:
+    """
+    Loading of all variables. (hardcoded through filenames which ones) 
+    option for extending time axis when joining members (to fit everything into same frame).
+    If not, then member needs to become a context variable (just like AMOC), also in the dataframe itself
+    """
+    productname = 'ecearth'
+    path_names = {}
+    for name, (lonmin, lonmax) in udomains.items():
+        for lat in range(20,70,10):
+            path_names.update({(f'{name}_u250',lat,productname): f'monthly_zonalmean_u250_NH_{lonmin}E_{lonmax}E.nc'})
+        path_names.update({(f'{name}_u250_latmax',0,productname): f'monthly_zonallatmax_u250_NH_{lonmin}E_{lonmax}E.nc'})
+
+    path_names.update({('vortex_u20',7080,productname):'monthly_zonalmean_u20_NH_70N_80N.nc'})
+    path_names.update({('ao',0,productname):'ao_psl_timeseries.nc'})
+    path_names.update({('nao',0,productname):'nao_psl_timeseries.nc'})
+    path_names.update({('nao',0,'station'):'nao_psl_station_timeseries.nc'})
+    path_names.update({('SPI1',0,productname):'spi1_medwest_mean.nc'})
+
+    loaded_sets = {}
+    for keytup, filename in path_names.items():
+        loaded_sets[keytup] = load_ecearth_var(*keytup, filename = filename, fake_time_axis = fake_time_axis) 
+    result = pd.concat(loaded_sets, axis = 1)
+    result.columns = result.columns.set_names(tscolnames + ['amoc'])
+    return result
+

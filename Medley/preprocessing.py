@@ -52,6 +52,8 @@ class Anomalizer(BaseEstimator):
     def _get_month_index(self, X : pd.DataFrame):
         if isinstance(X.index, pd.DatetimeIndex):
             indexer = X.index.month
+        elif 'time' in X.index.names: # MultiIndex
+            indexer = X.index.get_level_values('time').month
         elif 'anchor_month' in X.index.names: # Multi resampling
             indexer = X.index.get_level_values('anchor_month')
         else:
