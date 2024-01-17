@@ -35,7 +35,7 @@ climexp_properties = pd.DataFrame({
     #'hadsst_pdo':['pdo',0,'hadsst3','ipdo_hadsst3.dat'], # Has missing years
     'ersst_pdo':['pdo',0,'ersstv5','ipdo_ersst.dat'],
     'hadcrut_gmst':['gmst',0,'hadcrut5','ihadcrut5_global.dat'],
-    'cpc_mjo3':['mjo',3,'ncep','icpc_mjo03_mean12.dat'],
+    'cpc_mjo3':['mjo',3,'ncep','icpc_mjo03_mean12.dat'], # https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_mjo_index/mjo_index.shtml (10 phases!)
     'cpc_mjo6':['mjo',6,'ncep','icpc_mjo06_mean12.dat'],
     'ncar_qbo':['qbo',0,'ncep','inqbo.dat'],
     }, index = tscolnames + ['climexpfile']) 

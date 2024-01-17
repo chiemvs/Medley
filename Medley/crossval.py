@@ -1,5 +1,9 @@
 """
 Functions for cross validation.
+Completely based on / copied from code at 
+https://doi.org/10.5281/zenodo.7967133
+from publication:
+Sweet, L. B., Müller, C., Anand, M., & Zscheischler, J. (2023). Cross-validation strategy impacts the performance and interpretation of machine learning models. Artificial Intelligence for the Earth Systems, 2(4), e230026.
 """
 
 import numpy as np
