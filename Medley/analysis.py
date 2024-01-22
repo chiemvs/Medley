@@ -44,7 +44,7 @@ def trendfit_robust(da : xr.DataArray, standardize: bool = True, min_count: int 
             kwargs = dict(min_count = min_count))
     coefs.coords.update({'what':['intercept','slope']})
     if standardize:
-        coefs = coefs / da.std('time') # Cannot do skipna = False because then many slices would fail.
+        coefs = coefs / da.std(do_not_broadcast) # Cannot do skipna = False because then many slices would fail.
         coefs.attrs.update({'units':'std/yr'})
     else:
         coefs.attrs.update({'units':f'{da.attrs["units"]}/yr'})
