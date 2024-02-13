@@ -16,6 +16,15 @@ from Medley.utils import transform_to_spi, regions, udomains
 from Medley.preprocessing import monthly_resample_func, makemask
 from Medley.dataloading import datapath
 
+"""
+This is a relatively quick-and-dirty script that is not part of the analysis of observational data
+and neither of the statistical forecasting pipeline.
+Instead, these are simulation data, described in https://iopscience.iop.org/article/10.1088/1748-9326/ad14b0/pdf
+Several variables (an expert selection) are stored in IVM's data_catalogue
+Here these are processed with the goal of producing timeseries for a causal analysis and not much more.
+Definitions for Arctic Oscillation and North Atlantic Oscillation are crude.
+"""
+
 def process_one(filepath, ncvarname: str, nyearshift: int = 0):
     """
     Dropping first year for independence of the atmospheric runs
