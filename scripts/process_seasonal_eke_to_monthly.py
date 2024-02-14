@@ -20,12 +20,14 @@ seas_datapath = Path('/scistor/ivm/jsn295/Medi/seasonal')
 mon_datapath = Path('/scistor/ivm/jsn295/Medi/monthly')
 
 """
-Alter Eddy Kinetic Energy data (vertically integrated by mass) from Rei Chemke
+Script for a single datasource, namely 
+Eddy Kinetic Energy data (vertically integrated by mass) from Rei Chemke
+from 6 different Reanalyses
 Notes:
     - units are missing
     - ERA-I has artificial zeros in SON 2019
-From seasonal values to monthly values (smearing out the average)
-6 Reanalyses
+    - Seasonal timeresolution, so has to be interpolated to monthly ones
+ultimately this decreases the usefullness of this predictor, and it is generally disregarded.
 """
 
 def zonal_eke(lonmin: float = None, lonmax: float = None, latmin: float = None, latmax: float = None) -> xr.DataArray:

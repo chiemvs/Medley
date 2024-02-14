@@ -5,6 +5,13 @@ import cdsapi
 
 from pathlib import Path
 
+"""
+Data-downloading of ERA5 for monthly stratospheric vortex index.
+Time-series creation happens in scripts/preprate_monthly_ts_data/vortex
+The effort here is separate from the effort in hpc/compute_means
+which concerns pre-downloaded daily tropospheric zonal winds
+"""
+
 store = 'reanalysis-era5-pressure-levels-monthly-means'
 tempdir = Path('/scistor/ivm/jsn295/temp/')
 finalpath = Path('/scistor/ivm/jsn295/Medi/monthly/era5/monthly_u20_era5.zarr')

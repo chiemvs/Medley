@@ -14,6 +14,13 @@ sys.path.append(os.path.expanduser('~/Documents/Medley'))
 from scripts.prepare_monthly_ts_data import datapath
 from Medley.utils import udomains
 
+"""
+Data-wrangling for monthly jet indices based on daily zonal winds from ERA5
+at two tropospheric pressure levels, which are pre-downloaded on the cluster. 
+This is separate from the effort in scripts/retrieve_monthly_era5
+which is concerned with the stratospheric vortex (which is not pre-downloaded and had to be retrieved).
+"""
+
 def zonal_u_era5(level = 250, lonmin: float = None, lonmax: float = None, latmin: float = None, latmax: float = None) -> tuple[xr.DataArray,xr.DataArray]:
     """
     Extracting monthly average zonal mean u zonal wind 

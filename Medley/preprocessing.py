@@ -13,8 +13,11 @@ from sklearn.pipeline import Pipeline
 
 
 """
-Resampling functionalities
-timeseries / predictand extraction?
+Resampling functionalities to set up a statistical prediction setup (X, y)
+based on e.g. monthly y in Jan, Feb, March, resulting in multiple samples per year (strategy = multi),
+or mean of monthly y over months Jan, Feb, March, resulting in one sample per year (strategy = single),
+both in combination with lagged drivers X. Builds on the lilio package for calendar-based resampling
+also functionality for standardization or removing seasonality from timeseries 
 """
 
 class Anomalizer(BaseEstimator):
@@ -101,6 +104,7 @@ def make_pipeline(estimator, anom = False, anom_kwargs = dict(), scale = False, 
 
 def monthly_resample_func(ds: xr.Dataset, how = 'mean') -> xr.Dataset:
     """
+    Used in data retrieval and wrangling, not for setting up statistical prediction
     Left stamping (first day of the month)
     """
     resampled_object = ds.resample(time = 'M', label = 'left')
@@ -113,7 +117,11 @@ def monthly_resample_func(ds: xr.Dataset, how = 'mean') -> xr.Dataset:
 
 def simultaneous_resample(X : pd.DataFrame, y : pd.DataFrame, firstmonth = 12, lastmonth = 1, average = True):
     """
+    Resampling not for lagged statistical prediction (e.g. y_t=0 and X_t=-1) 
+    but to quantify concurrent/simultaneous assocation in a range of months 
+    defined by firstmonth and lastmonth.
     lastmonth is inclusive
+    multiple monthly samples if average = False
     """
     combined = X.join(y, how = 'outer')
     if firstmonth > lastmonth:
@@ -263,11 +271,13 @@ def average_within_mask(*args, minsamples: int = 1, **kwargs) -> pd.Series:
 
 def remove_bottleneck(X: pd.DataFrame, y: pd.DataFrame, startyear: int = None, endyear: int = None, fraction_valid: float = 0.8) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Several X variables have little data and would be bottlenecks when dropna
+    Several X variables have little data and would be bottlenecks when calling dropna(how = any)
+    bottlenecks are:
     EKE only 1980-2018
     MJO only 1980-now
     AMOC only 2004-2020
-    Therefore keep only those variables with a minimum fraction of valid data
+    Therefore this function is aimed to first remove those
+    and keep only those variables with a minimum fraction of valid data
     within a specified start/end window
     and then do dropna (both y and x-based)
     """

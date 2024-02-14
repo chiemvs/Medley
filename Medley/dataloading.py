@@ -12,11 +12,15 @@ from pathlib import Path
 from .utils import tscolnames, udomains
 from .preprocessing import makemask, average_within_mask, single_target_lagged_resample, multi_target_lagged_resample 
 
+"""
+IMPORTANT! set the below path to where all monthly data is stored.
+"""
 datapath = Path('/scistor/ivm/jsn295/Medi/monthly/')
 
 def get_monthly_data():
     """
-    Loading the monthly data prepared by 'make_monthly_data' in the scripts
+    Loading the monthly data prepared by 'make_monthly_data' in the scripts/prepare_monthly_ts_data
+    If you want to update, rerun that script.
     """
     finalpath = datapath / 'complete.parquet'
     table = pq.read_table(finalpath)
@@ -24,9 +28,12 @@ def get_monthly_data():
 
 def prep_ecad(target_region: dict, target_var: str = 'RR', minsamples: int = 10, shift: bool = False) -> pd.Series:
     """
-    target region dictionary
     Loading ECAD data
+    target region dictionary, see Medley.utils.regions 
     possible to apply an (X-1) month shift when SPIX is the target_var
+    SPI-3 for instance has a three month accumulation, timestamped at the last month
+    We should shift it with two months to achieve independence.
+    For SPI-1 it does not matter.
     """
     mask = makemask(target_region) 
     ecad = pd.read_hdf(datapath / f'eca_preaggregated_{target_var}.h5')
@@ -40,9 +47,11 @@ def prep_ecad(target_region: dict, target_var: str = 'RR', minsamples: int = 10,
 
 def prep_and_resample(target_region: dict, target_var: str = 'RR', minsamples: int = 10, shift: bool = False, resampling : str = 'single', resampling_kwargs : dict = {}) -> tuple[pd.DataFrame, pd.DataFrame, lilio.Calendar]:
     """
-    target region dictionary
-    Loading ECAD data
-    resampling determines the resampling strategy
+    Bulk function capturing common data preparation steps (both X and y)
+    Calls the Loading ECAD data (creating a y)
+    target region dictionary, see Medley.utils.regions 
+    Calls the get_monthly_data function (creating an X)
+    Then applies resampling and lagging.
     kwargs fed to the respective resampling function
     """
     target = prep_ecad(target_region, target_var, minsamples, shift).to_frame()
@@ -52,7 +61,7 @@ def prep_and_resample(target_region: dict, target_var: str = 'RR', minsamples: i
     # Define temporal sampling approaches
     if resampling == 'single':
         try:
-            resampling_kwargs.pop('target_agg')
+            resampling_kwargs.pop('target_agg') # kwarg ignored in single resampling.
         except KeyError:
             pass
         Xm, ym, cm = single_target_lagged_resample(X = df, y = target, **resampling_kwargs) 

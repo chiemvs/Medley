@@ -155,8 +155,9 @@ def transform_to_spi(rr : Union[pd.Series,xr.DataArray], minsamples: int = 20, c
 def chunk_func(ds: xr.Dataset, chunks = {'latitude':50, 'longitude':50}) -> xr.Dataset:
     """
     Chunking only the spatial dimensions. Eases reading complete timeseries at one grid location. 
+    Mainly for working with the zarr format, as we tend to want to 
+    visualize and trendfit local (grid-point) timeseries, the preferred way of chunking is by space
     """
-    #ds = ds.transpose("time","latitude", "longitude")
     chunks.update({'time':len(ds.time)}) # Needs to be specified as well, otherwise chunk of size 1.
     return ds.chunk(chunks)
 
@@ -168,6 +169,8 @@ def decimal_year_to_datetime(decyear: float) -> datetime:
 
 def process_ascii(timestamps: array.array, values: array.array, miss_val = -999.9) -> pd.DataFrame:
     """
+    Mainly used in the context of the data scraped from the climate explorer
+    this is namely texual ascii type data.
     both timestamps and values should be 1D
     Missing value handling, and handling the case with multiple monthly values for one yearly timestamp
     """

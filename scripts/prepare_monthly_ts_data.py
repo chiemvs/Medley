@@ -15,12 +15,20 @@ from pathlib import Path
 sys.path.append(os.path.expanduser('~/Documents/Medley/'))
 from Medley.utils import udomains, tscolnames
 
+"""
+Functionality for reading all intermediate files 
+of which most are already timeseries,
+doing some final processing for those that are not (notably for u zonal winds, and vortex)
+and then combining all timeseries on drivers in a single dataframe
+and writing out as complete.parquet 
+"""
+
 datapath = Path('/scistor/ivm/jsn295/Medi/monthly')
 
 def load_climexp() -> pd.DataFrame:
     """
     Collecting all the ready timeseries data from climexp
-    previously saved to disk with the retrieve climexp script
+    previously saved to disk with the retrieve_climexp_data script
     """
     inpath = datapath / f'monthly_climexp.h5'
     df = pd.read_hdf(inpath)
@@ -78,6 +86,7 @@ def amoc_proxy():
     """
     based on hadisst fingerprint of:
     Caesar, L., Rahmstorf, S., Robinson, A., Feulner, G., & Saba, V. (2018). Observed fingerprint of a weakening Atlantic Ocean overturning circulation. Nature, 556(7700), 191-196.
+    As described in retrieve_amoc this proxy is interpolated and suboptimal, often disregarded later.
     """
     amocpath = datapath / 'monthly_amoc_proxy.h5' 
     return pd.read_hdf(amocpath, key = 'amoc')
@@ -85,6 +94,8 @@ def amoc_proxy():
 def eke_series():
     """
     Only the atlantic domain
+    As described in process_seasonal_eke_to_monthly this variable is interpolated and suboptimal
+    Often disregarded later
     """
     lonmin, lonmax = udomains['atl']
     path = datapath / f'monthly_zonalmean_EKE_NH_{lonmin}E_{lonmax}E.nc'
@@ -101,14 +112,16 @@ def eke_series():
 
 def make_monthly_data(force_update: bool = False):
     """
-    Main function, reads data if stored
-    else will run the downloading and processing (or when update is forced).
+    Main function, reads dataframe if stored
+    else will create the complete dataframe (or when update is forced).
+    creation happens by sequentially calling all functions
+    and merging the dataframes based on the montly timestamp index.
     """
     finalpath = datapath / 'complete.parquet'
     if (not finalpath.exists()) or force_update: # Possibly need to unlink for updating
-        if finalpath.exists():
+        if finalpath.exists(): # creating a backup just in case
             os.system(f'cp {finalpath} {finalpath}.backup')
-        climexp_df = load_climexp() # download_climexp()
+        climexp_df = load_climexp() 
         era_df = all_u_series() # jet stream u's
         vortex_df = vortex() # stratospheric vortex u's
         eke_df = eke_series() 
@@ -126,6 +139,4 @@ def make_monthly_data(force_update: bool = False):
     return table
 
 if __name__ == '__main__':
-    #test = u_series(name='atlantic', lonmin = -50, lonmax = -10, level = 500)
-    #test2 = u_series(name='atlantic', lonmin = -8.5, lonmax = 42, level = 500)
     df = make_monthly_data(force_update = False).to_pandas()

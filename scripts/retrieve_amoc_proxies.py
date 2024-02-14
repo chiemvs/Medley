@@ -21,6 +21,9 @@ from Medley.utils import process_ascii, tscolnames
 Caesar, L., Rahmstorf, S., Robinson, A., Feulner, G., & Saba, V. (2018). Observed fingerprint of a weakening Atlantic Ocean overturning circulation. Nature, 556(7700), 191-196.
 
 Caesar, L., McCarthy, G. D., Thornalley, D. J. R., Cahill, N., & Rahmstorf, S. (2021). Current Atlantic meridional overturning circulation weakest in last millennium. Nature Geoscience, 14(3), 118-120.
+
+This data is on annual resolution, meaning it has to be interpolated.
+This is suboptimal, and ultimately renders it un-usable for causal analysis, where monthly lags have to be properly defined
 """
 
 datapath = Path('/scistor/ivm/jsn295/Medi/')

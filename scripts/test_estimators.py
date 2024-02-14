@@ -21,7 +21,14 @@ from Medley.utils import regions
 warnings.simplefilter('ignore',category=RuntimeWarning)
 warnings.simplefilter('ignore',category=UserWarning)
 
-prep_kwargs= dict(
+"""
+Testing of statistical prediction pipeline
+by sequentially calling functions for loading, resampling, crossvalidation, fitting and prediction.
+Arguments to those functions are defined in dictionaries, similar to the experiment-type dictionaries
+in the hpc/predictor_selection and hpc/hyperparams
+"""
+
+prep_kwargs= dict( 
     target_region = regions['medwest'],
     target_var = 'SPI1',
     minsamples = 10, # numer of stations
@@ -36,6 +43,7 @@ prep_kwargs= dict(
         lastmonth = 3,
         ),
     )
+#predictor_kwargs = dict() # empty dictionary if all predictors should be taken into account
 predictor_kwargs = dict( # Fixed arguments
     npreds = 7,
     expid = 'dd0d579f41', #'fa83d256b8', #'5f53f2f833', # 
@@ -70,10 +78,8 @@ pipeline_kwargs = dict(
 
 if __name__ == '__main__':
     X, y, cal = prep_and_resample(**prep_kwargs)
-    #y = prep_ecad(prep_kwargs['target_region'], 'SPI1', shift = False).to_frame()
-    #X = get_monthly_data()
 
-    ## Extraction of selected predictors, from a good experiment
+    ## Potential extraction of only selected predictors, from a succesful predictor-selection experiment of choice
     if predictor_kwargs:
         npreds = predictor_kwargs.pop('npreds')
         result, cv_scores = load_pred_results(**predictor_kwargs)
@@ -83,26 +89,25 @@ if __name__ == '__main__':
     X, y = remove_bottleneck(X, y, **bottleneck_kwargs)
     modelclass = return_estimator(estimator)
     model = modelclass(**estimator_kwargs)
+
+    ## Some testing code for explainers
     #model.fit(X,y.squeeze())
     #yhat = model.predict(X)
-
     #expl = return_explainer(model)
     #attribution = expl.explain(X)
 
     cv_kwargs['time_dim'] = X.index  
     cv = SpatiotemporalSplit(**cv_kwargs)
 
+    ## Some testing in combination with standardization or taking anomalies
     #p = make_pipeline(estimator = model, **pipeline_kwargs)
     #p.fit(X, y.squeeze()) # Some conversion to numpy takes place
     #expl2 = return_explainer(p)
     #attribution2 = expl2.explain(X)
-
-
     #yhats = cross_val_predict(p, X = X, y = y.squeeze(), cv = cv)
+
     yhats2 = cross_val_predict(model, X = X, y = y.squeeze(), cv = cv)
     print(r2_score(y,yhats2))
-    #scores = cross_val_score(model, X = X, y = y.squeeze(), cv = cv, scoring = 'neg_mean_absolute_error')
     scores = cross_validate(model, X = X, y = y.squeeze(), cv = cv, scoring = ['r2','neg_mean_squared_error'])
     print(scores['test_neg_mean_squared_error'].mean())
-    #scores2 = cross_validate(p, X = X, y = y.squeeze(), cv = cv, scoring = ['r2','neg_mean_absolute_error'])
 

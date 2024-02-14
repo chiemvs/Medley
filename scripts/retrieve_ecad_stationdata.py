@@ -17,29 +17,12 @@ from Medley.preprocessing import monthly_resample_func
 overwrite = True
 
 """
-Daily data
-"""
-var = 'rr'
-
-#url = f'https://knmi-ecad-assets-prd.s3.amazonaws.com/download/ECA_{"" if blend else "non"}blend_{variable}.zip'
-
-tempdir = Path('/scistor/ivm/jsn295/temp')
-
-#os.system(f'curl {url} -o {tempdir / "temp.zip"}')
-#os.system(f'unzip {tempdir / "temp.zip"} -d {tempdir}')
-
-for country_zip in tempdir.glob(f'ECA_blended_{var}_*.zip'):
-    country = country_zip.name.split('_')[-1].split('.')[0] 
-
-"""
-Predefined indices
+Predefined monthly indices
 monthly values (SPI includes the month itself, and previous months, depending on the aggregation)
 """
 
 rawdir = Path(os.path.expanduser('~/Medi/monthly/eca_preaggregated_raw'))
-#variables = {'CDD':'days','PET':'mm','SPI3':'','RR':'mm'}
-#variables = {'RR':'mm'}
-variables = {'SPI1_Gerard':''}
+variables = {'CDD':'days','PET':'mm','SPI3':'','RR':'mm','SPI1_Gerard':''}
 
 countries = ['SPAIN', 'PORTUGAL','FRANCE','ITALY','GREECE','ISRAEL','SLOVENIA','CROATIA','CYPRUS','MONTENEGRO','ALBANIA','NORTH MACEDONIA','BOSNIA AND HERZEGOVINA','TUNISIA']#,'TÃ\x9cRKIYE']
 # Turkey is weirdly encoded
@@ -48,6 +31,7 @@ miss = -999999
 
 def read_one_file(path):
     """
+    Files come in the fixed-width textual format
     reading and numerical processing in read_ascii
     conversion from units 0.01 to units 1
     01-06 SOUID: Source identifier
@@ -70,6 +54,12 @@ def read_one_file(path):
     return test / 100
 
 def read_one_spi1_file(path):
+    """
+    Custom code to read the 'SPI1_Gerard' data prepared by Gerard van der Schrier from KNMI
+    This exists next to 'SPI1' data computed by me from monthly RR (in hpc/calc_spi_from_ecad)
+    which does not need to be wrangled here.  
+    Correlation between the two versions of SPI1 is ~0.98
+    """
     temp = pd.read_csv(path, header = None, names = ['ignore','STAID','month','year','SPI1','filter'])
     temp.loc[:,'month'] = temp.loc[:,'month'] - 6 # 0=jaarlijks gemiddelde, 1,2 winter- en zomerhalfjaar, 3,4,5,6 DJF, MAM, JJA, SON, 7=januari, 8=februari etc
     temp = temp.loc[temp.loc[:,'month'] > 0,:]
@@ -84,7 +74,7 @@ for var in variables.keys():
     tempvardir = rawdir / f'temp_{var}'
     if (not zippath.exists()) or overwrite:
         if var == 'SPI1_Gerard':
-            warnings.warn('SPI1 cannot be downloaded, as was manually prepared by Gerard. Continuing with existing data')
+            warnings.warn('SPI1_Gerard cannot be downloaded, as was manually prepared by Gerard from KNMI. Continuing with existing data')
         else:
             url = f'https://knmi-ecad-assets-prd.s3.amazonaws.com/download/millennium/data/{zipname}'
             os.system(f'curl {url} -o {zippath}')
